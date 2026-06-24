@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "ai_server/API_GUIDE.md",
+                "file": "ai_server/Refactor API and process.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "API_GUIDE"
+              "title": "Refactor API and process"
             }
           }
         ]
@@ -182,11 +182,15 @@
   },
   "active": "b389a8eb4a181b64",
   "lastOpenFiles": [
+    "Workflow.md",
+    "ai_server/API_GUIDE.md",
+    "ai_server/postman_collection.json",
+    "ai_server/api.txt",
+    "ai_server/api.txt.txt",
+    "ai_server/api.txt.json",
+    "ai_server/api.json",
     "ai_server/REAL_WORKFLOW.md",
     "ai_server/Refactor API and process.md",
-    "ai_server/API_GUIDE.md",
-    "Workflow.md",
-    "ai_server/postman_collection.json",
     "ai_server/docker-compose.yml",
     "ai_server/Dockerfile",
     "ai_server/README.md",

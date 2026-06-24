@@ -1,29 +1,58 @@
-# Real-World Workflow: Face Registration & Attendance (Optimized Version)
+# Real-World Workflow: Face Registration & Attendance (Async Queue Version)
 
-This guide shows the **optimized process** for registering new faces and taking attendance in a real deployment.
+This guide shows the **asynchronous queue-based workflow** for registering new faces and taking attendance in production.
 
-> **What changed?**
+> **Why async queue?**
 >
-> - **One-step registration:** `POST /register` replaces the old 3-step (`/users` → `/users/{id}/images` → `/train`)
-> - **Auto-embedding:** Face vectors are extracted immediately during upload — no separate training step
-> - **Recommended photos:** Reduced from 5-10 to **1-2 clear front-facing photos** (ArcFace is robust enough)
-> - **Backward compatible:** All old endpoints (`/users`, `/users/{id}/images`, `/train`) still work
+> - When 100+ students register simultaneously, the server stays responsive
+> - `/register` saves images to disk + queues them — returns immediately (no waiting for AI)
+> - AI processing happens in background via `/train-now` or scheduled worker
+> - ESP32-S3 verification remains real-time and unaffected by registration load
 
 ---
 
-## Part 1: Registering a New Face (One-Step)
+## Part 1: How the Async System Works
 
-### Overview
+```mermaid
+sequenceDiagram
+    participant Client as ESP32 / App
+    participant API as FastAPI Server
+    participant Disk as Image Storage
+    participant Queue as RegistrationQueue (DB)
+    participant Worker as Background Worker
+    participant PKL as face_embeddings.pkl
 
-When a new person joins (employee, student, member), you need only **one API call**:
+    Client->>API: POST /register (student_id + photos)
+    API->>Disk: Save images to disk
+    API->>Queue: Create queue entries (status=pending)
+    API-->>Client: 200 {"status": "pending"}
 
-1. `POST /register` — Upload name + photos → System auto-creates user, stores images, and extracts face embeddings
+    Note over Client,API: Registration is instant — no AI yet!
+
+    Client->>API: GET /register/status/6600001
+    API->>Queue: Check status
+    API-->>Client: 200 {"status": "pending"}
+
+    Admin->>API: POST /train-now (trigger processing)
+    API->>Queue: Fetch all pending items
+    API->>Worker: For each image: detect face → extract embedding
+    Worker->>Queue: Update status (completed/failed)
+    Worker->>PKL: Save embeddings
+    API-->>Admin: 200 {"pending_images_in_queue": 15}
+
+    Client->>API: GET /register/status/6600001
+    API-->>Client: 200 {"status": "completed"}
+
+    ESP32->>API: POST /verify (real-time face scan)
+    API->>PKL: Match embedding
+    API-->>ESP32: {"match": True, "student_id": "6600001"}
+```
 
 ---
 
-### Step-by-Step Registration (Postman)
+## Part 2: Registering a New Face (Async)
 
-#### Step 1: Prepare Photos
+### Step 1: Prepare Photos
 
 | Do This                               | Avoid This                          |
 | ------------------------------------- | ----------------------------------- |
@@ -32,45 +61,108 @@ When a new person joins (employee, student, member), you need only **one API cal
 | Clear, not blurry                     | Blurry or pixelated images          |
 | Neutral expression                    | Extreme expressions (yawning, etc.) |
 
-**Recommended photo count:** 1-2 photos per person (front-facing, well-lit)
+**Recommended photo count:** 1-3 photos per person (front-facing, well-lit)
 
 ---
 
-#### Step 2: Register User & Upload Photos (One Request)
+### Step 2: Upload Photos (Non-blocking)
 
 **Method:** POST
 **URL:** `http://<VM-IP>:8000/register`
 **Headers:** None
 **Body:** `form-data`
 
-- Key: `name` (type: **Text**) — e.g., "6600001" or "Alice Johnson"
-- Key: `file` (type: **File**) — Select one or more images (hold Ctrl/Cmd to select multiple files)
+- Key: `student_id` (type: **Text**) — e.g., "6600001"
+- Key: `files` (type: **File**) — Select 1-3 photos (hold Ctrl/Cmd for multiple)
 
 **Click Send**
+
+**Response (instant — no AI wait):**
+
+```json
+{
+  "message": "Images queued for processing successfully",
+  "student_id": "6600001",
+  "status": "pending"
+}
+```
+
+**What happened:**
+
+1. User profile created/updated in database
+2. Images saved to `data/uploads/` on disk
+3. Queue entries created with `status="pending"`
+4. **Response returned immediately — AI not yet run!**
+
+---
+
+### Step 3: Trigger AI Processing
+
+**Option A: Manual Trigger (Recommended for testing)**
+
+Call `/train-now` to process all pending queue items immediately:
+
+**Method:** POST
+**URL:** `http://<VM-IP>:8000/train-now`
 
 **Response:**
 
 ```json
 {
-  "message": "User registered and face embedded successfully",
-  "user_id": 1,
-  "name": "6600001"
+  "message": "Background training started",
+  "pending_images_in_queue": 3
 }
 ```
 
-**What happened behind the scenes:**
+**Option B: Scheduled Worker (Recommended for production)**
 
-1. Created user profile in database
-2. Saved uploaded images as base64
-3. Detected faces in each image
-4. Aligned faces using ArcFace landmarks
-5. Extracted 512-dimensional face embeddings
-6. Saved embeddings to `data/face_embeddings.pkl`
-7. **No separate `/train` call needed!**
+Set up a cron job or scheduler that calls `/train-now` every few minutes:
+
+```bash
+# Every 5 minutes
+*/5 * * * * curl -X POST http://<VM-IP>:8000/train-now
+```
 
 ---
 
-#### Step 3: Verify Registration Works
+### Step 4: Check Processing Status
+
+**Method:** GET
+**URL:** `http://<VM-IP>:8000/register/status/6600001`
+
+**Response (pending):**
+
+```json
+{
+  "student_id": "6600001",
+  "status": "pending",
+  "message": "Waiting for AI processing"
+}
+```
+
+**Response (completed):**
+
+```json
+{
+  "student_id": "6600001",
+  "status": "completed",
+  "message": "Face extracted and saved successfully"
+}
+```
+
+**Response (failed — no face detected):**
+
+```json
+{
+  "student_id": "6600001",
+  "status": "failed",
+  "message": "No face detected, please upload a new clear image"
+}
+```
+
+---
+
+### Step 5: Verify Registration Works
 
 **Method:** POST
 **URL:** `http://<VM-IP>:8000/verify`
@@ -83,59 +175,38 @@ When a new person joins (employee, student, member), you need only **one API cal
 ```json
 {
   "match": true,
-  "user_id": 1,
-  "name": "6600001",
+  "student_id": "6600001",
   "similarity_score": 0.85,
-  "timestamp": "2026-06-24T10:30:00"
+  "timestamp": "2026-06-24T12:30:00"
 }
 ```
 
-**If `match: false` or low score (< 0.6):**
-
-- Upload clearer, front-facing photos
-- Ensure photos are well-lit (no shadows on face)
-- Re-register with better photos
-
 ---
 
-### Registration Checklist (Optimized)
+### Registration Checklist (Async)
 
-- [ ] Prepared 1-2 clear front-facing photos
-- [ ] Called `POST /register` with name + photos
+- [ ] Prepared 1-3 clear front-facing photos
+- [ ] Called `POST /register` with `student_id` + photos → received `"status": "pending"`
+- [ ] Called `POST /train-now` to trigger AI processing
+- [ ] Checked `GET /register/status/6600001` → `"status": "completed"`
 - [ ] Verified with test photo via `/verify` → `match: true`
-- [ ] Saved user ID for future reference
 
 ---
 
-## Part 2: Taking Attendance (Face Verification)
+## Part 3: Taking Attendance (Face Verification)
 
-### Overview
-
-When a person arrives (at office, school, event), the system:
-
-1. Captures their face (via ESP32-S3 or uploaded photo)
-2. Compares against stored embeddings
-3. Logs check-in if match found
-
----
-
-### Step-by-Step Attendance
-
-#### Method A: Using ESP32-S3 (Real-time)
-
-**This is the automated method for actual deployment.**
+### Real-time with ESP32-S3
 
 1. **ESP32-S3 captures face** automatically when person stands in front
 2. **ESP32 sends photo** to `POST /verify` via HTTP
-3. **Server processes and returns result**
-4. **ESP32 displays result** on TFT screen or LED indicator
+3. **Server matches against trained embeddings** (instant, real-time)
+4. **ESP32 displays result** on TFT screen
 
 **ESP32 sends:**
 
 ```http
 POST http://<VM-IP>:8000/verify
 Content-Type: multipart/form-data
-
 [image data]
 ```
 
@@ -144,78 +215,24 @@ Content-Type: multipart/form-data
 ```json
 {
   "match": true,
-  "user_id": 1,
-  "name": "6600001",
+  "student_id": "6600001",
   "similarity_score": 0.85,
-  "timestamp": "2026-06-24T10:30:00"
+  "timestamp": "2026-06-24T12:30:00"
 }
 ```
 
-**ESP32 actions:**
-
-- If `match: true` → Show "Welcome 6600001!" + log attendance
-- If `match: false` → Show "Unknown person" + alert admin
-
----
-
-#### Method B: Using Postman (Manual Testing)
-
-**Method:** POST
-**URL:** `http://<VM-IP>:8000/verify`
-**Body:** `form-data`
-
-- Key: `file` (type: **File**) — Upload a photo of the person
-
-**Response (Match Found):**
-
-```json
-{
-  "match": true,
-  "user_id": 1,
-  "name": "6600001",
-  "similarity_score": 0.85,
-  "timestamp": "2026-06-24T10:30:00"
-}
-```
-
-**Response (Unknown Person):**
+**Server responds (Unknown):**
 
 ```json
 {
   "match": false,
-  "user_id": null,
-  "name": "Unknown",
+  "student_id": null,
   "similarity_score": 0.0,
-  "timestamp": "2026-06-24T10:30:00"
+  "timestamp": "2026-06-24T12:30:00"
 }
 ```
 
----
-
-#### Method C: Using Base64 (Mobile App / Web)
-
-**For integration with mobile apps or web interfaces:**
-
-1. **Convert photo to base64:**
-
-```bash
-# macOS/Linux
-base64 -i photo.jpg
-
-# Windows PowerShell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("photo.jpg"))
-```
-
-2. **Send to verify:**
-
-- Key: `image_base64` (type: **Text**)
-- Value: `data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...`
-
----
-
 ### View Attendance Logs
-
-**To see all check-in records:**
 
 **Method:** GET
 **URL:** `http://<VM-IP>:8000/logs`
@@ -226,241 +243,64 @@ base64 -i photo.jpg
 [
   {
     "id": 1,
-    "user_id": 1,
-    "name": "6600001",
+    "student_id": "6600001",
     "similarity_score": 0.85,
     "device_id": "ESP32-S3-01",
-    "timestamp": "2026-06-24T10:30:00"
+    "timestamp": "2026-06-24T12:30:00"
   }
 ]
 ```
-
-**Database location:** `ai_server/face_recognition.db`
-
----
-
-## Part 3: Real-World Scenarios
-
-### Scenario 1: New Employee Onboarding
-
-**Situation:** A new employee "6600020" joins the company
-
-**Process:**
-
-1. HR takes **2 photos** of the employee (front-facing, well-lit)
-2. HR calls one API: `POST /register` with `name="6600020"` + 2 photos
-3. System auto-creates user, saves images, and extracts face embeddings
-4. HR tests: `POST /verify` with one of the photos
-5. **Result:** `match: true, name: "6600020"`
-6. Employee can now use the attendance system **immediately**
-
-**Time saved vs old system:** ~5 minutes → ~10 seconds
-
----
-
-### Scenario 2: Daily Attendance (Office)
-
-**Situation:** Employees arrive at office and check in via ESP32-S3 at entrance
-
-1. Employee walks to ESP32-S3 kiosk
-2. ESP32-S3 automatically captures face
-3. ESP32 sends photo to `POST /verify`
-4. Server identifies employee (if registered)
-5. Server logs check-in with timestamp
-6. ESP32 displays: "Welcome, 6600001! Check-in at 09:05 AM"
-7. If unknown: "Access denied. Please contact HR."
-
-**Result:** Attendance automatically recorded in database
-
----
-
-### Scenario 3: Student Attendance (Classroom)
-
-**Situation:** Teacher takes attendance using a tablet with camera
-
-1. Teacher opens attendance app (connected to API)
-2. App captures student face one by one
-3. App sends photo to `POST /verify`
-4. Server returns student name/ID
-5. App marks student as "Present"
-6. If unknown: "Unknown — mark as absent"
-7. Teacher reviews and confirms
-
-**Result:** Attendance sheet auto-filled
-
----
-
-### Scenario 4: Event Check-in
-
-**Situation:** Conference attendees check in at registration desk
-
-1. Attendee stands in front of camera
-2. System captures face and verifies against pre-registered list
-3. If match: "Welcome, John! You are checked in."
-4. If no match: "Please register at the help desk."
-5. System logs check-in time
-
-**Result:** Fast, contactless check-in
 
 ---
 
 ## Part 4: API Endpoint Reference
 
-| API         | Method | Purpose               | Request Body                          | Notes                           |
-| ----------- | ------ | --------------------- | ------------------------------------- | ------------------------------- |
-| `/`         | GET    | Health check          | None                                  | Returns `{"status": "ok"}`      |
-| `/register` | POST   | One-step registration | `form-data`: `name` + `file`(s)       | **Recommended** — auto-embeds   |
-| `/verify`   | POST   | Face verification     | `form-data`: `file` or `image_base64` | Returns match + logs attendance |
-| `/logs`     | GET    | Attendance history    | Query param: `?limit=50`              | Shows recent check-in records   |
+| API                             | Method | Purpose                         | Key Fields               | Notes                              |
+| ------------------------------- | ------ | ------------------------------- | ------------------------ | ---------------------------------- |
+| `/`                             | GET    | Health check                    | —                        | Returns `{"status": "ok"}`         |
+| `/register`                     | POST   | Upload photos to queue          | `student_id` + `files`   | ⭐ **Async** — returns immediately |
+| `/register/status/{student_id}` | GET    | Check AI processing status      | —                        | Returns pending/completed/failed   |
+| `/train-now`                    | POST   | Process all pending queue items | —                        | Manual trigger for background AI   |
+| `/verify`                       | POST   | Real-time face recognition      | `file` or `image_base64` | Match + logs attendance            |
+| `/logs`                         | GET    | Attendance history              | `?limit=50`              | Shows recent check-in records      |
 
 ### Legacy Endpoints (Still Supported)
 
 | API                  | Method | Purpose                         |
 | -------------------- | ------ | ------------------------------- |
-| `/users`             | POST   | Create user only                |
+| `/users`             | POST   | Create user profile             |
 | `/users`             | GET    | List all users                  |
-| `/users/{id}/images` | POST   | Upload images for existing user |
-| `/train`             | POST   | Manual training (retrain all)   |
+| `/users/{id}/images` | POST   | Upload image for existing user  |
+| `/train`             | POST   | Full retrain from all DB images |
 
 ---
 
-## Part 5: Best Practices
+## Part 5: Architecture Comparison
 
-### Photo Guidelines
-
-| Aspect     | Good                       | Bad                            |
-| ---------- | -------------------------- | ------------------------------ |
-| Lighting   | Bright, even lighting      | Dark, backlit, shadows on face |
-| Angle      | Front-facing (±15 degrees) | Profile, extreme angles        |
-| Distance   | Face fills 60-70% of frame | Too far or too close           |
-| Focus      | Sharp, clear               | Blurry, out of focus           |
-| Background | Plain, neutral             | Busy, distracting              |
-| Expression | Neutral to slight smile    | Extreme expressions            |
-| **Count**  | **1-2 photos is enough**   | 5-10 photos (old system)       |
-
-### Similarity Threshold
-
-- **Default:** 0.60 (configurable in `app/config.py`)
-- Too many false positives (wrong person matched) → **Increase** to 0.65-0.70
-- Too many false negatives (correct person not matched) → **Decrease** to 0.55-0.50
-
-### Security Guidelines
-
-1. **Restrict API access:** Use firewall rules to allow only trusted IPs
-2. **Use HTTPS:** In production, use reverse proxy (Nginx) with SSL
-3. **Database backup:** Regular backups of `face_recognition.db`
-4. **Backup embeddings:** Backup `data/face_embeddings.pkl` regularly
-
----
-
-## Part 6: Troubleshooting
-
-### Issue: "No face detected" Error
-
-**Causes:**
-
-- Photo is blurry or dark
-- Face is at extreme angle
-- Face is too small in frame
-
-**Solutions:**
-
-- Use clearer, better-lit photos
-- Ensure face is front-facing
-- Move closer to camera
-
-### Issue: Low Similarity Score (< 0.6)
-
-**Causes:**
-
-- Photo quality is poor
-- Different camera/lighting for registration vs verification
-- Person looks very different (hairstyle, glasses, etc.)
-
-**Solutions:**
-
-- Re-register with better quality photos
-- Use same camera type for registration and verification
-- Ensure consistent lighting
-
-### Issue: Wrong Person Matched (False Positive)
-
-**Causes:**
-
-- Similarity threshold too low
-- Two people look similar
-- Poor quality registration photos
-
-**Solutions:**
-
-- Increase `SIMILARITY_THRESHOLD` to 0.65 or 0.70
-- Re-register with clearer, more distinct photos
-
----
-
-## Part 7: Complete Real-World Example
-
-### Registering 10 Employees (Optimized)
-
-```bash
-# Register Alice (1 API call, done in seconds)
-POST /register
-Body: form-data { name: "6600001", file: [alice1.jpg, alice2.jpg] }
-Response: {"message": "User registered and face embedded successfully", "user_id": 1}
-
-# Register Bob (1 API call)
-POST /register
-Body: form-data { name: "6600002", file: [bob1.jpg, bob2.jpg] }
-Response: {"message": "User registered and face embedded successfully", "user_id": 2}
-
-# ... repeat for 10 employees (10 API calls total)
-# NO separate /train needed — each registration auto-embeds!
-```
-
-### Daily Attendance
-
-```bash
-# 9:00 AM - Alice arrives (ESP32-S3 auto-captures)
-POST /verify (from ESP32)
-Response: {"match": true, "user_id": 1, "name": "6600001", "similarity_score": 0.87}
-
-# 9:05 AM - Bob arrives
-POST /verify (from ESP32)
-Response: {"match": true, "user_id": 2, "name": "6600002", "similarity_score": 0.82}
-
-# 9:15 AM - Unknown person
-POST /verify (from ESP32)
-Response: {"match": false, "user_id": null, "name": "Unknown", "similarity_score": 0.0}
-
-# End of day - View all logs
-GET /logs
-Response: [{"id": 1, "user_id": 1, "name": "6600001", ...}, ...]
-```
-
----
-
-## Summary
-
-| Phase            | Action       | API Endpoint     | Frequency       |
-| ---------------- | ------------ | ---------------- | --------------- |
-| **Registration** | One-step reg | `POST /register` | Once per person |
-| **Attendance**   | Verify face  | `POST /verify`   | Every check-in  |
-| **Monitoring**   | View logs    | `GET /logs`      | As needed       |
+| Aspect                 | Old Sync System                                   | New Async Queue System                                   |
+| ---------------------- | ------------------------------------------------- | -------------------------------------------------------- |
+| `/register` behavior   | Blocks while AI extracts embeddings (can timeout) | Returns instantly — queues for later processing          |
+| Handling 100+ students | Server overload, slow responses                   | All requests processed instantly, AI works in background |
+| AI processing          | Only when `/train` is called                      | Via `/train-now` trigger or scheduled worker             |
+| Image storage          | Base64 in database only                           | Disk storage + DB path reference                         |
+| Registration status    | Unknown (no status tracking)                      | Trackable via `/register/status/{id}`                    |
+| Error handling         | Fails silently                                    | Marked as `failed` with error message                    |
 
 ---
 
 ## Quick Reference Card
 
 ```
-NEW USER REGISTRATION (Optimized):
-1. POST /register    → Upload name + 1-2 photos → Auto-registered & embedded ✓
-   (No separate /users, /users/{id}/images, or /train needed!)
+ASYNC REGISTRATION FLOW:
+1. POST /register          → Upload student_id + 1-3 photos → gets "pending"
+2. POST /train-now         → Process all queued images (AI extracts faces)
+3. GET /register/status/id → Check if processing is complete
 
 DAILY ATTENDANCE:
-1. POST /verify      → Send photo, get result
-2. GET /logs         → View attendance records
+1. POST /verify            → Send photo, get match result
+2. GET /logs               → View attendance records
 
 DATABASE:
 Location: ai_server/face_recognition.db
-View: sqlite3 face_recognition.db
+Images:   ai_server/data/uploads/
 ```

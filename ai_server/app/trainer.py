@@ -44,14 +44,14 @@ def train_system(db: Session):
                 try:
                     cv_img = decode_base64_image(img_record.image_base64)
                 except Exception as e:
-                    print(f"Error decoding base64 image ID {img_record.id} for user {user.name}: {e}")
+                    print(f"Error decoding base64 image ID {img_record.id} for user {user.student_id}: {e}")
             
             # 2. Try loading from Path if Base64 wasn't available or failed
             if cv_img is None and img_record.image_path:
                 try:
                     cv_img = cv2.imread(img_record.image_path)
                 except Exception as e:
-                    print(f"Error reading image path {img_record.image_path} for user {user.name}: {e}")
+                    print(f"Error reading image path {img_record.image_path} for user {user.student_id}: {e}")
 
             if cv_img is None:
                 continue
@@ -63,13 +63,14 @@ def train_system(db: Session):
                     user_embeddings.append(result["embedding"])
                     total_embeddings_count += 1
             except Exception as e:
-                print(f"Error processing face for user {user.name}, image ID {img_record.id}: {e}")
+                print(f"Error processing face for user {user.student_id}, image ID {img_record.id}: {e}")
 
         # Only register user if we have at least one valid face embedding
         if user_embeddings:
             embeddings_data.append({
                 "user_id": user.id,
-                "name": user.name,
+                "name": user.student_id,
+                "student_id": user.student_id,
                 "embeddings": user_embeddings
             })
             users_trained_count += 1

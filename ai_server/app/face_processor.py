@@ -21,6 +21,14 @@ class FaceProcessor:
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         return img
 
+    def decode_image_path(self, image_path: str) -> np.ndarray:
+        """
+        Read and decode an image from a file path on disk.
+        Returns OpenCV BGR image or None if the file cannot be read.
+        """
+        img = cv2.imread(image_path)
+        return img
+
     def extract_face_embedding(self, cv_img: np.ndarray):
         """
         Detects faces in an image, aligns them, and extracts the 512-dimension embedding.
