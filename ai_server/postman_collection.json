@@ -1,0 +1,288 @@
+{
+  "info": {
+    "name": "Face Recognition API (Optimized)",
+    "description": "Optimized API for Face Registration, Real-Time Verification, and Attendance Logging\n\n## What's New\n- **One-step registration:** `POST /register` replaces the old 3-step flow\n- **Auto-embedding:** Face vectors extracted immediately — no separate `/train` needed\n- **Reduced photos:** 1-2 clear front-facing photos is enough\n- **Backward compatible:** Legacy endpoints still work",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "face-recognition-api"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://<YOUR-VM-IP>:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "description": "Check if the server is running",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"status\": \"ok\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Register User (One-Step)",
+      "description": "Register a new user and extract face embeddings in a single request.\n\n**No separate `/train` call needed!** The system automatically detects faces, extracts 512-dimension ArcFace embeddings, and saves them to the .pkl file.\n\n**Recommended:** 1-2 clear front-facing photos per person.",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "6600001",
+              "type": "text",
+              "description": "Student ID or name"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "1-2 clear front-facing photos (select multiple files)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["register"]
+        }
+      },
+      "response": [
+        {
+          "name": "Created",
+          "status": "Created",
+          "code": 201,
+          "header": [],
+          "body": "{\n    \"message\": \"User registered and face embedded successfully\",\n    \"user_id\": 1,\n    \"name\": \"6600001\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Face (File Upload)",
+      "description": "Identify a person from an uploaded photo. Used by ESP32-S3 or manual testing.\n\n**Match Found:** Returns user info with similarity score.\n**Unknown:** Returns `match: false` with `name: \"Unknown\"`.",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Photo of the person to identify"
+            },
+            {
+              "key": "device_id",
+              "value": "ESP32-S3-01",
+              "type": "text",
+              "description": "Device identifier (optional, default: ESP32-S3-01)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["verify"]
+        }
+      },
+      "response": [
+        {
+          "name": "Match Found",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"match\": true,\n    \"user_id\": 1,\n    \"name\": \"6600001\",\n    \"similarity_score\": 0.85,\n    \"timestamp\": \"2026-06-24T10:30:00\"\n}"
+        },
+        {
+          "name": "Unknown Person",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"match\": false,\n    \"user_id\": null,\n    \"name\": \"Unknown\",\n    \"similarity_score\": 0.0,\n    \"timestamp\": \"2026-06-24T10:30:00\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Verify Face (Base64)",
+      "description": "Alternative method to verify using a base64-encoded image string. Useful for mobile apps and web interfaces.\n\n**How to convert image to base64:**\n- macOS/Linux: `base64 -i photo.jpg`\n- Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes(\"photo.jpg\"))`",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image_base64",
+              "value": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+              "type": "text",
+              "description": "Base64-encoded image with data URI prefix"
+            },
+            {
+              "key": "device_id",
+              "value": "ESP32-S3-01",
+              "type": "text",
+              "description": "Device identifier (optional, default: ESP32-S3-01)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["verify"]
+        }
+      },
+      "response": [
+        {
+          "name": "Match Found",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"match\": true,\n    \"user_id\": 1,\n    \"name\": \"6600001\",\n    \"similarity_score\": 0.85,\n    \"timestamp\": \"2026-06-24T10:30:00\"\n}"
+        },
+        {
+          "name": "Unknown Person",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"match\": false,\n    \"user_id\": null,\n    \"name\": \"Unknown\",\n    \"similarity_score\": 0.0,\n    \"timestamp\": \"2026-06-24T10:30:00\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Attendance Logs",
+      "description": "Retrieve the history of all face verification check-ins.",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/logs?limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["logs"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "50",
+              "description": "Number of log entries to return (default: 50)"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "[\n    {\n        \"id\": 1,\n        \"user_id\": 1,\n        \"name\": \"6600001\",\n        \"similarity_score\": 0.85,\n        \"device_id\": \"ESP32-S3-01\",\n        \"timestamp\": \"2026-06-24T10:30:00\"\n    }\n]"
+        }
+      ]
+    },
+    {
+      "name": "Legacy Endpoints",
+      "description": "These endpoints from the original system are still available for backward compatibility.",
+      "item": [
+        {
+          "name": "Create User (Legacy)",
+          "description": "Creates a new user profile only. Use `/register` instead for one-step registration.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"John Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "List All Users (Legacy)",
+          "description": "Lists all registered users in the database.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Upload Face Image (Legacy)",
+          "description": "Upload a face image for an existing user. Use `/register` instead.",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Clear face photo (JPG/PNG)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/1/images",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "1", "images"],
+              "variable": [
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "description": "ID of the user (from Create User response)"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Train Model (Legacy)",
+          "description": "Manually trigger training to extract face embeddings from all uploaded images. Only needed if legacy endpoints were used to add users/images.",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            },
+            "url": {
+              "raw": "{{baseUrl}}/train",
+              "host": ["{{baseUrl}}"],
+              "path": ["train"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
