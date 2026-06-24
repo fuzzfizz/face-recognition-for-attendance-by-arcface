@@ -1,0 +1,52 @@
+# ───────── Python ─────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+
+# ───────── IDE / Editor ─────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ───────── Face Recognition Data ─────────
+ai_server/data/
+*.pkl
+
+# ───────── Database ─────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ───────── Image Uploads (local testing) ─────────
+uploads/
+test_images/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+
+# ───────── Docker ─────────
+.docker/
+docker-compose.override.yml
+
+# ───────── Environment ─────────
+.env
+.env.local
+.env.*.local
+
+# ───────── Logs ─────────
+*.log
