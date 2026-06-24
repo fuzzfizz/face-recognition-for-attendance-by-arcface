@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+tests/
+*.test.py
+.pytest_cache
+.coverage
+htmlcov/
+
+# Documentation
+*.md
+!README.md
+
+# Data files (will be created at runtime)
+data/
+*.pkl
+*.db
+
+# Docker
+Dockerfile
+.dockerignore

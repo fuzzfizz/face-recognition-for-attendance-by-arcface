@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  face-recognition-ai:
+    build: .
+    container_name: face-recognition-ai-server
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/face_recognition.db
+      - SIMILARITY_THRESHOLD=0.60
+      - MODEL_NAME=buffalo_l
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
