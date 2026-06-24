@@ -1,9 +1,9 @@
 {
   "info": {
-    "name": "Face Recognition API (Async Queue)",
-    "description": "Asynchronous API with queue-based registration — non-blocking /register, background AI processing\n\n## What's New\n- **Async registration:** `/register` saves images + queues, returns instantly\n- **Status tracking:** `/register/status/{id}` to check AI processing progress\n- **Manual trigger:** `/train-now` to process all pending queue items\n- **student_id based:** All responses use `student_id` instead of `user_id` + `name`\n- **Backward compatible:** Legacy endpoints still work",
+    "name": "Face Recognition API v4 (Supabase + Local .pkl)",
+    "description": "Hybrid architecture API: face matching via local .pkl (fast), data via Supabase (or SQLite fallback)\n\n## Key Changes in v4\n- **Dual-mode:** Supabase (cloud) OR SQLite (local) — auto-select based on environment variables\n- **Health check** returns current mode (`supabase` or `sqlite`)\n- **Face matching** always uses local .pkl (no network latency)\n- **Image upload** goes to Supabase Storage (cloud) or local disk (SQLite mode)\n- **All endpoints** remain backward compatible",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "face-recognition-api"
+    "_exporter_id": "face-recognition-api-v4"
   },
   "variable": [
     {
@@ -20,7 +20,7 @@
   "item": [
     {
       "name": "Health Check",
-      "description": "Check if the server is running",
+      "description": "Check if the server is running and see which mode (supabase/sqlite) is active",
       "request": {
         "method": "GET",
         "header": [],
@@ -32,17 +32,24 @@
       },
       "response": [
         {
-          "name": "Success",
+          "name": "Success (Supabase mode)",
           "status": "OK",
           "code": 200,
           "header": [],
-          "body": "{\n    \"status\": \"ok\"\n}"
+          "body": "{\n    \"status\": \"ok\",\n    \"mode\": \"supabase\"\n}"
+        },
+        {
+          "name": "Success (SQLite mode)",
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n    \"status\": \"ok\",\n    \"mode\": \"sqlite\"\n}"
         }
       ]
     },
     {
       "name": "Register (Async Queue)",
-      "description": "Upload face images for registration. Non-blocking — saves images to disk, creates queue entries (status='pending'), and returns immediately.\n\n**AI processing happens later** via `/train-now` or a scheduled worker.\n\n**Recommended:** 1-3 clear front-facing photos per person.",
+      "description": "Upload face images for registration. Non-blocking — saves image to storage (Supabase or local), creates queue entries (status='pending'), and returns immediately.\n\nAI processing happens later via /train-now.",
       "request": {
         "method": "POST",
         "header": [],
@@ -81,7 +88,7 @@
     },
     {
       "name": "Check Registration Status",
-      "description": "Check whether the AI has finished processing face embeddings for a student.\n\nReturns one of: pending | completed | failed",
+      "description": "Check whether the face registration for a student has been processed.\n\nChecks local .pkl file for existing embeddings (works in both Supabase and SQLite mode).",
       "request": {
         "method": "GET",
         "header": [],
@@ -93,13 +100,6 @@
       },
       "response": [
         {
-          "name": "Pending",
-          "status": "OK",
-          "code": 200,
-          "header": [],
-          "body": "{\n    \"student_id\": \"6600001\",\n    \"status\": \"pending\",\n    \"message\": \"Waiting for AI processing\"\n}"
-        },
-        {
           "name": "Completed",
           "status": "OK",
           "code": 200,
@@ -107,17 +107,17 @@
           "body": "{\n    \"student_id\": \"6600001\",\n    \"status\": \"completed\",\n    \"message\": \"Face extracted and saved successfully\"\n}"
         },
         {
-          "name": "Failed",
+          "name": "Pending",
           "status": "OK",
           "code": 200,
           "header": [],
-          "body": "{\n    \"student_id\": \"6600001\",\n    \"status\": \"failed\",\n    \"message\": \"No face detected, please upload a new clear image\"\n}"
+          "body": "{\n    \"student_id\": \"6600001\",\n    \"status\": \"pending\",\n    \"message\": \"Waiting for AI processing (trigger /train-now)\"\n}"
         }
       ]
     },
     {
       "name": "Trigger Training (Process Queue)",
-      "description": "Manually trigger AI processing for all pending queue items. Extracts face embeddings and updates the .pkl file.\n\n**For production:** Set up a cron job to call this every few minutes.",
+      "description": "Manually trigger AI processing for all pending queue items. Extracts face embeddings and updates the .pkl file.\n\nWorks with both Supabase (queue in PostgreSQL) and SQLite (local queue).",
       "request": {
         "method": "POST",
         "header": [],
@@ -137,13 +137,13 @@
           "status": "OK",
           "code": 200,
           "header": [],
-          "body": "{\n    \"message\": \"Background training started\",\n    \"pending_images_in_queue\": 15\n}"
+          "body": "{\n    \"message\": \"Training completed\",\n    \"processed_students\": [\"6600001\"],\n    \"total_pending\": 3\n}"
         }
       ]
     },
     {
       "name": "Verify Face (File Upload)",
-      "description": "Real-time face verification. Matches the input photo against trained embeddings and logs the attendance record.",
+      "description": "Real-time face verification. Matches the input photo against local .pkl embeddings (fast, no network) and logs the attendance record to Supabase/SQLite.",
       "request": {
         "method": "POST",
         "header": [],
@@ -189,7 +189,7 @@
     },
     {
       "name": "Verify Face (Base64)",
-      "description": "Alternative method to verify using a base64-encoded image string. Useful for mobile apps and web interfaces.\n\n**How to convert image to base64:**\n- macOS/Linux: `base64 -i photo.jpg`\n- Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes(\"photo.jpg\"))`",
+      "description": "Alternative method to verify using a base64-encoded image string. Useful for ESP32, mobile apps, and web interfaces.\n\nHow to convert image to base64:\n- macOS/Linux: base64 -i photo.jpg\n- Windows PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes(\"photo.jpg\"))",
       "request": {
         "method": "POST",
         "header": [],
@@ -235,7 +235,7 @@
     },
     {
       "name": "Get Attendance Logs",
-      "description": "Retrieve the history of all face verification check-ins.",
+      "description": "Retrieve the history of all face verification check-ins from Supabase or SQLite.",
       "request": {
         "method": "GET",
         "header": [],
@@ -263,12 +263,12 @@
       ]
     },
     {
-      "name": "Legacy Endpoints",
-      "description": "These endpoints from the original system are still available for backward compatibility.",
+      "name": "Legacy Endpoints (Backward Compatible)",
+      "description": "These endpoints from the original system are still available for backward compatibility. They now work through the same database abstraction layer (Supabase or SQLite).",
       "item": [
         {
           "name": "Create User (Legacy)",
-          "description": "Creates a new user profile only. Use `/register` instead.",
+          "description": "Creates a new user profile only. Use /register instead.",
           "request": {
             "method": "POST",
             "header": [
@@ -290,7 +290,7 @@
         },
         {
           "name": "List All Users (Legacy)",
-          "description": "Lists all registered users in the database.",
+          "description": "Lists all registered users from the .pkl embeddings file.",
           "request": {
             "method": "GET",
             "header": [],
@@ -303,7 +303,7 @@
         },
         {
           "name": "Upload Face Image (Legacy)",
-          "description": "Upload a face image for an existing user. Use `/register` instead.",
+          "description": "Upload a face image for an existing user. Use /register instead.",
           "request": {
             "method": "POST",
             "header": [],
@@ -326,7 +326,7 @@
                 {
                   "key": "user_id",
                   "value": "1",
-                  "description": "ID of the user (from Create User response)"
+                  "description": "User ID (compatibility mode)"
                 }
               ]
             }
@@ -334,7 +334,7 @@
         },
         {
           "name": "Train Model (Legacy)",
-          "description": "Full retrain from all user images in DB. Use `/train-now` for queue-based processing.",
+          "description": "Full retrain/reindex from existing .pkl embeddings. Use /train-now for queue-based processing.",
           "request": {
             "method": "POST",
             "header": [],

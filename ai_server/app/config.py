@@ -8,9 +8,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 EMBEDDINGS_PATH = DATA_DIR / "face_embeddings.pkl"
 
-# Database Configuration
-# Default to SQLite for easy development/testing, but can be overridden with MySQL/PostgreSQL URL
+# Fallback to SQLite for completely offline dev (optional)
+# If no Supabase config is provided, the app falls back to SQLite
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./face_recognition.db")
+
+# ──────────────────────────────────────────────
+# Supabase Configuration
+# ──────────────────────────────────────────────
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "face-images")
 
 # Face Recognition Configuration
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.60"))
