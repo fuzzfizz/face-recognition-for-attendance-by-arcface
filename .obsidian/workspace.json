@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "ai_server/Refactor API and process.md",
+                "file": "ai_server/DOCKER.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Refactor API and process"
+              "title": "DOCKER"
             }
           }
         ]
@@ -180,19 +180,25 @@
       "bases:Create new base": false
     }
   },
-  "active": "6dc962b2424538de",
+  "active": "b389a8eb4a181b64",
   "lastOpenFiles": [
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/__init__.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_union_categoricals.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_qcut.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_pivot_multilevel.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_pivot.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_melt.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_get_dummies.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_from_dummies.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_cut.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__/test_crosstab.cpython-311.pyc",
+    "ai_server/venv/Lib/site-packages/pandas/tests/reshape/__pycache__",
+    "ai_server/venv/Lib/site-packages/idna-3.18.dist-info/licenses/LICENSE.md",
+    "ai_server/venv/Lib/site-packages/httpcore-1.0.9.dist-info/licenses/LICENSE.md",
+    "ai_server/DESIGN.md",
     "ai_server/DEPLOY_VM.md",
-    "ai_server/face_recognition.db",
-    "face_recognition.db-journal",
-    "ai_server/test_database.py",
-    "face_recognition.db",
-    "ai_server/data/uploads",
-    "ai_server/app/__pycache__/face_processor.cpython-311.pyc",
-    "ai_server/app/__pycache__/supabase_client.cpython-311.pyc",
-    "ai_server/app/__pycache__/matcher.cpython-311.pyc",
-    "ai_server/app/__pycache__/database.cpython-311.pyc",
-    "ai_server/data",
+    "ai_server/DOCKER.md",
+    "ai_server/Refactor API and process.md",
     "ai_server/venv/Lib/site-packages/starlette-1.3.1.dist-info/licenses/LICENSE.md",
     "ai_server/venv/Lib/site-packages/uvicorn-0.49.0.dist-info/licenses/LICENSE.md",
     "ai_server/venv/Lib/site-packages/numpy-2.4.6.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
@@ -208,8 +214,6 @@
     "Workflow.md",
     "ai_server/API_GUIDE.md",
     "ai_server/REAL_WORKFLOW.md",
-    "ai_server/Refactor API and process.md",
-    "ai_server/README.md",
-    "ai_server/DESIGN.md"
+    "ai_server/README.md"
   ]
 }
