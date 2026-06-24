@@ -41,5 +41,4 @@ data/
 *.db
 
 # Docker
-Dockerfile
 .dockerignore
