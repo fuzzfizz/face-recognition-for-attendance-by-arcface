@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from insightface.app import FaceAnalysis
 from app.config import MODEL_NAME
+from app.utils.image_utils import decode_image_from_source, decode_image_bytes
 
 class FaceProcessor:
     def __init__(self, ctx_id: int = -1):
@@ -17,17 +18,14 @@ class FaceProcessor:
         """
         Decode raw image bytes (e.g., from network request) into OpenCV BGR image.
         """
-        nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        return img
+        return decode_image_bytes(img_bytes)
 
     def decode_image_path(self, image_path: str) -> np.ndarray:
         """
         Read and decode an image from a file path on disk.
         Returns OpenCV BGR image or None if the file cannot be read.
         """
-        img = cv2.imread(image_path)
-        return img
+        return decode_image_from_source(image_path)
 
     def extract_face_embedding(self, cv_img: np.ndarray):
         """
