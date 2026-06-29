@@ -18,6 +18,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(String(20), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     images = relationship("UserImage", back_populates="user", cascade="all, delete-orphan")
