@@ -1,0 +1,185 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:app_face_capture/data/repositories/face_repository.dart';
+import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
+
+class UploadScreen extends StatelessWidget {
+  final String studentId;
+  final List<String> imagePaths;
+
+  const UploadScreen({
+    super.key,
+    required this.studentId,
+    required this.imagePaths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => UploadViewModel(
+        repository: FaceRepository(),
+        studentId: studentId,
+        imagePaths: imagePaths,
+      )..startUpload(),
+      child: Consumer<UploadViewModel>(
+        builder: (context, viewModel, _) {
+          return PopScope(
+            canPop: viewModel.isSuccess || viewModel.isFailed,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text(_appBarTitle(viewModel)),
+                automaticallyImplyLeading:
+                    viewModel.isSuccess || viewModel.isFailed,
+              ),
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: _buildBody(context, viewModel),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _appBarTitle(UploadViewModel viewModel) {
+    if (viewModel.isUploading) return 'Uploading...';
+    if (viewModel.isChecking) return 'Processing...';
+    if (viewModel.isSuccess) return 'Success';
+    if (viewModel.isFailed) return 'Failed';
+    return 'Upload';
+  }
+
+  Widget _buildBody(BuildContext context, UploadViewModel viewModel) {
+    if (viewModel.isUploading) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 24),
+          Text(
+            'Uploading photos...',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(value: viewModel.progress),
+          const SizedBox(height: 8),
+          Text(
+            '${viewModel.uploadedCount} / ${viewModel.totalCount} photos',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      );
+    }
+
+    if (viewModel.isChecking) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 24),
+          Text(
+            'AI is processing your face data...',
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This may take a moment',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+          ),
+        ],
+      );
+    }
+
+    if (viewModel.isSuccess) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.check_circle_rounded, size: 96, color: Colors.green),
+          const SizedBox(height: 24),
+          Text(
+            'Registration Successful!',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Student ID: $studentId',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Face data has been registered and is ready for attendance.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          FilledButton.icon(
+            onPressed: () => context.goNamed('home'),
+            icon: const Icon(Icons.home),
+            label: const Text('Back to Home'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (viewModel.isFailed) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_rounded, size: 96, color: Colors.red),
+          const SizedBox(height: 24),
+          Text(
+            'Registration Failed',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            viewModel.errorMessage ?? 'An unknown error occurred.',
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.goNamed('home'),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => viewModel.startUpload(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+}
