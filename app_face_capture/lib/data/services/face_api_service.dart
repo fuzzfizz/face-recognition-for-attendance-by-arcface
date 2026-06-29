@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:app_face_capture/core/constants/api_constants.dart';
@@ -49,7 +49,12 @@ class FaceApiService {
   /// in normal user flows. Authorization must be enforced on the backend.
   Future<void> triggerTraining() async {
     final uri = Uri.parse('$_baseUrl${ApiConstants.trainNow}');
-    final response = await _client.post(uri);
+    final response = await _client.post(
+      uri,
+      headers: {
+        'X-Admin-Key': ApiConstants.adminApiKey,
+      },
+    );
 
     if (response.statusCode != 200) {
       throw Exception('Training trigger failed: ${response.statusCode}');
