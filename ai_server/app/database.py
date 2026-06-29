@@ -19,6 +19,7 @@ from app.supabase_client import (
     insert_log as sb_insert_log,
     get_logs as sb_get_logs,
     insert_queue_item as sb_insert_queue,
+    get_pending_queue_items as sb_get_pending_queue_items,
     update_queue_item as sb_update_queue,
     upload_image as sb_upload_image,
 )
@@ -208,8 +209,7 @@ def insert_queue_item(student_id, image_path):
 
 def get_pending_queue_items():
     if supabase_available():
-        # For Supabase, we handle this differently (query + mark as processing)
-        return []
+        return sb_get_pending_queue_items()
     else:
         _init_sqlite()
         session = next(_get_sqlite_session())

@@ -33,23 +33,17 @@ def is_available() -> bool:
 # ──────────────────────────────────────────────
 def upsert_user(student_id: str) -> Optional[Dict[str, Any]]:
     """
-    Create a user in Supabase if not exists.
+    Create or retrieve a user in Supabase using an atomic upsert.
     Returns the user record dict or None if Supabase is unavailable.
     """
     if not is_available():
         return None
     try:
         sb = get_supabase()
-        # Check if user exists
-        result = sb.table("users").select("*").eq("student_id", student_id).execute()
-        if result.data and len(result.data) > 0:
-            return result.data[0]
-        # Create new user
-        result = sb.table("users").insert({
-            "student_id": student_id,
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-        return result.data[0] if result.data else None
+        response = sb.table("users").upsert(
+            {"student_id": student_id}, on_conflict="student_id"
+        ).execute()
+        return response.data[0] if response.data else None
     except Exception as e:
         print(f"[Supabase] upsert_user error: {e}")
         return None
@@ -150,6 +144,18 @@ def update_queue_item(queue_id: int, status: str, error_message: Optional[str] =
     except Exception as e:
         print(f"[Supabase] update_queue_item error: {e}")
         return False
+
+
+def get_pending_queue_items() -> List[Dict[str, Any]]:
+    """Get all pending registration queue items from Supabase."""
+    if not is_available():
+        return []
+    try:
+        response = get_supabase().table("registration_queue").select("*").eq("status", "pending").execute()
+        return response.data or []
+    except Exception as e:
+        print(f"[Supabase] get_pending_queue_items error: {e}")
+        return []
 
 
 # ──────────────────────────────────────────────
