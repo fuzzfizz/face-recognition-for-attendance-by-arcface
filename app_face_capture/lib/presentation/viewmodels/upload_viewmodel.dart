@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 
 enum UploadState { idle, uploading, checking, success, failed }
@@ -8,6 +9,7 @@ class UploadViewModel extends ChangeNotifier {
   final FaceRepository _repository;
   final String studentId;
   final List<String> imagePaths;
+  final UploadMethod method;
 
   UploadState _state = UploadState.idle;
   int _uploadedCount = 0;
@@ -17,6 +19,7 @@ class UploadViewModel extends ChangeNotifier {
     required FaceRepository repository,
     required this.studentId,
     required this.imagePaths,
+    required this.method,
   }) : _repository = repository;
 
   UploadState get state => _state;
@@ -37,7 +40,7 @@ class UploadViewModel extends ChangeNotifier {
 
     try {
       final files = imagePaths.map((p) => File(p)).toList();
-      await _repository.uploadPhotos(studentId, files);
+      await _repository.uploadPhotos(studentId, files, method);
       _uploadedCount = imagePaths.length;
       notifyListeners();
 
@@ -63,7 +66,7 @@ class UploadViewModel extends ChangeNotifier {
     for (var i = 0; i < maxAttempts; i++) {
       await Future.delayed(delay);
       try {
-        final status = await _repository.checkStatus(studentId);
+        final status = await _repository.checkStatus(studentId, method: method);
         if (status.isCompleted) {
           _state = UploadState.success;
           notifyListeners();

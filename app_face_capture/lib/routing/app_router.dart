@@ -3,6 +3,8 @@ import 'package:app_face_capture/presentation/views/home_screen.dart';
 import 'package:app_face_capture/presentation/views/capture_screen.dart';
 import 'package:app_face_capture/presentation/views/review_screen.dart';
 import 'package:app_face_capture/presentation/views/upload_screen.dart';
+import 'package:app_face_capture/presentation/views/settings_screen.dart';
+import 'package:app_face_capture/presentation/views/admin_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -41,6 +43,16 @@ final GoRouter appRouter = GoRouter(
           imagePaths: List<String>.from(args['imagePaths'] as List),
         );
       },
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/admin',
+      name: 'admin',
+      builder: (context, state) => const AdminScreen(),
     ),
   ],
 );
