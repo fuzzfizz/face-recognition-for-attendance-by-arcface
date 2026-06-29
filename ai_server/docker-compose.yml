@@ -7,16 +7,21 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/face_recognition.db
-      - SIMILARITY_THRESHOLD=0.60
-      - MODEL_NAME=buffalo_l
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/face_recognition.db}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-face-images}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.60}
+      - MODEL_NAME=${MODEL_NAME:-buffalo_l}
       - HOST=0.0.0.0
       - PORT=8000
     volumes:
       - ./data:/app/data
+      - ~/.insightface:/home/appuser/.insightface  # Mount cached models
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
       interval: 30s
       timeout: 10s
       retries: 3
