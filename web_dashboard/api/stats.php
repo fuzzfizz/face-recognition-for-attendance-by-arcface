@@ -3,13 +3,6 @@ require_once __DIR__ . '/../config.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-// Total registered students
-$usersRes = supabase_get('users', ['select' => 'id', 'limit' => '1']);
-if ($usersRes['error']) {
-    http_response_code(503);
-    echo json_encode(['error' => 'Supabase unavailable: ' . $usersRes['error']]);
-    exit;
-}
 
 // Get count via Prefer: count=exact header (separate curl call for count)
 function supabase_count(string $table, array $params = []): int {
