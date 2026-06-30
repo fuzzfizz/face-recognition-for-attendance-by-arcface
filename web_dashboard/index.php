@@ -150,6 +150,7 @@ let currentTab   = 'attendance';
 let attendancePage = 1;
 const PER_PAGE   = 20;
 let knownIds     = new Set(); // track last page of IDs to highlight new rows
+let allDevices   = new Set(); // globally track all discovered devices
 let pollTimer    = null;
 
 // ── Tab switching ──
@@ -205,7 +206,7 @@ function setError(msg) {
   const banner = document.getElementById('error-banner');
   dot.className = 'live-dot offline';
   document.getElementById('live-label').textContent = 'Offline';
-  document.getElementById('error-msg').textContent = escapeHtml(msg);
+  document.getElementById('error-msg').textContent = msg;
   banner.classList.add('visible');
 }
 function clearError() {
@@ -234,7 +235,7 @@ async function loadStats() {
 
     if (d.last_checkin) {
       document.getElementById('stat-last-time').textContent    = formatTime(d.last_checkin.timestamp);
-      document.getElementById('stat-last-student').textContent = (d.last_checkin.student_id ? escapeHtml(d.last_checkin.student_id) : '—') + ' · ' + formatRelative(d.last_checkin.timestamp);
+      document.getElementById('stat-last-student').textContent = (d.last_checkin.student_id ?? '—') + ' · ' + formatRelative(d.last_checkin.timestamp);
     }
   } catch (e) {
     setError('Stats error: ' + e.message);
@@ -263,14 +264,17 @@ async function loadAttendance(page) {
     const freshIds = (attendancePage === 1 && knownIds.size > 0) ? new Set([...newIds].filter(id => !knownIds.has(id))) : new Set();
     knownIds = newIds;
 
-    // Populate device filter
+    // Track all active devices globally to prevent dropdown options from shrinking
+    rows.forEach(r => {
+      if (r.device_id) allDevices.add(r.device_id);
+    });
+
+    // Populate device filter from the global Set
     const deviceSel = document.getElementById('filter-device');
     const currentVal = deviceSel.value;
-    const devices = [...new Set(rows.map(r => r.device_id).filter(Boolean))];
     
-    // Clear and rebuild device filter dropdown to dynamically update options
     deviceSel.innerHTML = '<option value="">All Devices</option>';
-    devices.forEach(dv => {
+    [...allDevices].sort().forEach(dv => {
       const opt = document.createElement('option');
       opt.value = dv; opt.textContent = dv;
       if (dv === currentVal) opt.selected = true;
