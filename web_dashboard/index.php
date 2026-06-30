@@ -199,7 +199,7 @@ function scoreBadge(score) {
 }
 function statusBadge(status) {
   const s = status || 'none';
-  return `<span class="status-badge status-badge--${s}">${s}</span>`;
+  return `<span class="status-badge status-badge--${escapeHtml(s)}">${escapeHtml(s)}</span>`;
 }
 function setError(msg) {
   const dot = document.getElementById('live-dot');
@@ -287,14 +287,14 @@ async function loadAttendance(page) {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr class="${freshIds.has(row.id) ? 'row-new' : ''}">
-          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
+          <td><span class="cell-id">${escapeHtml(row.student_id) || '—'}</span></td>
           <td>${row.name ? escapeHtml(row.name) : '<span style="color:#64748b">—</span>'}</td>
           <td>
             <span class="cell-time-main">${escapeHtml(formatTime(row.timestamp))}</span>
             <span class="cell-time-rel">${escapeHtml(formatRelative(row.timestamp))}</span>
           </td>
           <td>${scoreBadge(row.similarity_score)}</td>
-          <td><span class="cell-device">${escapeHtml(row.device_id)}</span></td>
+          <td><span class="cell-device">${escapeHtml(row.device_id) || '—'}</span></td>
         </tr>
       `).join('');
     }
@@ -365,7 +365,7 @@ async function loadStudents() {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr>
-          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
+          <td><span class="cell-id">${escapeHtml(row.student_id) || '—'}</span></td>
           <td>${row.name ? escapeHtml(row.name) : '<span style="color:#64748b">—</span>'}</td>
           <td>${escapeHtml(formatDateTime(row.created_at))}</td>
           <td>${statusBadge(row.queue_status)}</td>
@@ -396,8 +396,8 @@ async function loadQueue() {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr>
-          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
-          <td style="font-size:11px;color:#94a3b8;word-break:break-all">${escapeHtml(row.image_path)}</td>
+          <td><span class="cell-id">${escapeHtml(row.student_id) || '—'}</span></td>
+          <td style="font-size:11px;color:#94a3b8;word-break:break-all">${escapeHtml(row.image_path) || '—'}</td>
           <td>${statusBadge(row.status)}</td>
           <td>${escapeHtml(formatDateTime(row.created_at))}</td>
           <td>${row.processed_at ? escapeHtml(formatDateTime(row.processed_at)) : '<span style="color:#64748b">—</span>'}</td>
