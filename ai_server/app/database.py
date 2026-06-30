@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 
 from app.config import DATABASE_URL
 from app.matcher import load_embeddings, save_embeddings, match_face
+from app.models import Base, User, UserImage, RegistrationQueue, CheckInLog
 from app.supabase_client import (
     is_available as supabase_available,
     upsert_user as sb_upsert_user,
@@ -18,6 +19,7 @@ from app.supabase_client import (
     insert_log as sb_insert_log,
     get_logs as sb_get_logs,
     insert_queue_item as sb_insert_queue,
+    get_pending_queue_items as sb_get_pending_queue_items,
     update_queue_item as sb_update_queue,
     upload_image as sb_upload_image,
 )
@@ -27,23 +29,24 @@ from app.supabase_client import (
 # ──────────────────────────────────────────────
 _sqlite_engine = None
 _SessionLocal = None
-_Base = None
-_UserModel = None
-_UserImageModel = None
-_QueueModel = None
-_LogModel = None
 _IMAGES_DIR = None
+
+# Aliases kept for internal use — models live in app.models
+_UserModel = User
+_UserImageModel = UserImage
+_QueueModel = RegistrationQueue
+_LogModel = CheckInLog
 
 
 def _init_sqlite():
-    """Lazy-init SQLAlchemy models and engine."""
-    global _sqlite_engine, _SessionLocal, _Base, _UserModel, _UserImageModel, _QueueModel, _LogModel, _IMAGES_DIR
+    """Lazy-init SQLAlchemy engine and session factory, then create all tables."""
+    global _sqlite_engine, _SessionLocal, _IMAGES_DIR
 
     if _sqlite_engine is not None:
         return  # Already initialized
 
-    from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
-    from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
     from pathlib import Path
 
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -55,51 +58,8 @@ def _init_sqlite():
     connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
     _sqlite_engine = create_engine(DATABASE_URL, connect_args=connect_args)
     _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_sqlite_engine)
-    _Base = declarative_base()
 
-    class User(_Base):
-        __tablename__ = "users"
-        id = Column(Integer, primary_key=True, index=True)
-        student_id = Column(String(20), unique=True, nullable=False, index=True)
-        created_at = Column(DateTime, default=datetime.datetime.utcnow)
-        images = relationship("UserImage", back_populates="user", cascade="all, delete-orphan")
-        logs = relationship("CheckInLog", back_populates="user")
-
-    class UserImage(_Base):
-        __tablename__ = "user_images"
-        id = Column(Integer, primary_key=True, index=True)
-        user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-        image_path = Column(String(255), nullable=True)
-        image_base64 = Column(Text, nullable=True)
-        created_at = Column(DateTime, default=datetime.datetime.utcnow)
-        user = relationship("User", back_populates="images")
-
-    class RegistrationQueue(_Base):
-        __tablename__ = "registration_queue"
-        id = Column(Integer, primary_key=True, index=True)
-        student_id = Column(String(20), nullable=False, index=True)
-        image_path = Column(String(255), nullable=False)
-        status = Column(String(20), nullable=False, default="pending")
-        error_message = Column(Text, nullable=True)
-        created_at = Column(DateTime, default=datetime.datetime.utcnow)
-        processed_at = Column(DateTime, nullable=True)
-
-    class CheckInLog(_Base):
-        __tablename__ = "check_in_logs"
-        id = Column(Integer, primary_key=True, index=True)
-        user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-        student_id = Column(String(20), nullable=True)
-        similarity_score = Column(Float, nullable=True)
-        device_id = Column(String(50), nullable=True)
-        timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-        user = relationship("User", back_populates="logs")
-
-    _UserModel = User
-    _UserImageModel = UserImage
-    _QueueModel = RegistrationQueue
-    _LogModel = CheckInLog
-
-    _Base.metadata.create_all(bind=_sqlite_engine)
+    Base.metadata.create_all(bind=_sqlite_engine)
 
 
 def _get_sqlite_session():
@@ -249,8 +209,7 @@ def insert_queue_item(student_id, image_path):
 
 def get_pending_queue_items():
     if supabase_available():
-        # For Supabase, we handle this differently (query + mark as processing)
-        return []
+        return sb_get_pending_queue_items()
     else:
         _init_sqlite()
         session = next(_get_sqlite_session())
