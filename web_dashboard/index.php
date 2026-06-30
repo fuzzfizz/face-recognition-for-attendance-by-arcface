@@ -159,11 +159,21 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   document.getElementById('content-' + name).classList.add('active');
+  if (name === 'attendance') loadAttendance(1);
   if (name === 'students') loadStudents();
   if (name === 'queue')    loadQueue();
 }
 
 // ── Helpers ──
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 function formatTime(isoStr) {
   if (!isoStr) return '—';
   const d = new Date(isoStr);
@@ -195,7 +205,7 @@ function setError(msg) {
   const banner = document.getElementById('error-banner');
   dot.className = 'live-dot offline';
   document.getElementById('live-label').textContent = 'Offline';
-  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-msg').textContent = escapeHtml(msg);
   banner.classList.add('visible');
 }
 function clearError() {
@@ -224,7 +234,7 @@ async function loadStats() {
 
     if (d.last_checkin) {
       document.getElementById('stat-last-time').textContent    = formatTime(d.last_checkin.timestamp);
-      document.getElementById('stat-last-student').textContent = (d.last_checkin.student_id ?? '—') + ' · ' + formatRelative(d.last_checkin.timestamp);
+      document.getElementById('stat-last-student').textContent = (d.last_checkin.student_id ? escapeHtml(d.last_checkin.student_id) : '—') + ' · ' + formatRelative(d.last_checkin.timestamp);
     }
   } catch (e) {
     setError('Stats error: ' + e.message);
@@ -250,19 +260,22 @@ async function loadAttendance(page) {
 
     // Detect new rows (IDs not seen on last render)
     const newIds = new Set(rows.map(r => r.id));
-    const freshIds = attendancePage === 1 ? new Set([...newIds].filter(id => !knownIds.has(id))) : new Set();
+    const freshIds = (attendancePage === 1 && knownIds.size > 0) ? new Set([...newIds].filter(id => !knownIds.has(id))) : new Set();
     knownIds = newIds;
 
-    // Populate device filter (first load or on date change)
+    // Populate device filter
     const deviceSel = document.getElementById('filter-device');
-    if (deviceSel.options.length <= 1) {
-      const devices = [...new Set(rows.map(r => r.device_id).filter(Boolean))];
-      devices.forEach(dv => {
-        const opt = document.createElement('option');
-        opt.value = dv; opt.textContent = dv;
-        deviceSel.appendChild(opt);
-      });
-    }
+    const currentVal = deviceSel.value;
+    const devices = [...new Set(rows.map(r => r.device_id).filter(Boolean))];
+    
+    // Clear and rebuild device filter dropdown to dynamically update options
+    deviceSel.innerHTML = '<option value="">All Devices</option>';
+    devices.forEach(dv => {
+      const opt = document.createElement('option');
+      opt.value = dv; opt.textContent = dv;
+      if (dv === currentVal) opt.selected = true;
+      deviceSel.appendChild(opt);
+    });
 
     // Render rows
     if (rows.length === 0) {
@@ -270,14 +283,14 @@ async function loadAttendance(page) {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr class="${freshIds.has(row.id) ? 'row-new' : ''}">
-          <td><span class="cell-id">${row.student_id ?? '—'}</span></td>
-          <td>${row.name ?? '<span style="color:#64748b">—</span>'}</td>
+          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
+          <td>${row.name ? escapeHtml(row.name) : '<span style="color:#64748b">—</span>'}</td>
           <td>
-            <span class="cell-time-main">${formatTime(row.timestamp)}</span>
-            <span class="cell-time-rel">${formatRelative(row.timestamp)}</span>
+            <span class="cell-time-main">${escapeHtml(formatTime(row.timestamp))}</span>
+            <span class="cell-time-rel">${escapeHtml(formatRelative(row.timestamp))}</span>
           </td>
           <td>${scoreBadge(row.similarity_score)}</td>
-          <td><span class="cell-device">${row.device_id ?? '—'}</span></td>
+          <td><span class="cell-device">${escapeHtml(row.device_id)}</span></td>
         </tr>
       `).join('');
     }
@@ -285,7 +298,7 @@ async function loadAttendance(page) {
     // Badge on Attendance tab
     document.getElementById('badge-attendance').textContent = d.total > 0 ? d.total : '';
 
-    // Pagination
+    // Pagination (Sliding Window with Prev/Next buttons)
     const totalPages = Math.ceil((d.total ?? 0) / PER_PAGE);
     const pagination = document.getElementById('attendance-pagination');
     if (totalPages > 1) {
@@ -294,13 +307,37 @@ async function loadAttendance(page) {
         `Showing ${(attendancePage - 1) * PER_PAGE + 1}–${Math.min(attendancePage * PER_PAGE, d.total)} of ${d.total}`;
       const btns = document.getElementById('attendance-page-btns');
       btns.innerHTML = '';
-      for (let p = 1; p <= Math.min(totalPages, 5); p++) {
+
+      // Prev Button
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-btn';
+      prevBtn.textContent = '‹';
+      prevBtn.disabled = attendancePage === 1;
+      prevBtn.onclick = () => loadAttendance(attendancePage - 1);
+      btns.appendChild(prevBtn);
+
+      // Sliding Window of 5 pages
+      let startPage = Math.max(1, attendancePage - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
         const btn = document.createElement('button');
         btn.className = 'page-btn' + (p === attendancePage ? ' active' : '');
         btn.textContent = p;
         btn.onclick = () => loadAttendance(p);
         btns.appendChild(btn);
       }
+
+      // Next Button
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-btn';
+      nextBtn.textContent = '›';
+      nextBtn.disabled = attendancePage === totalPages;
+      nextBtn.onclick = () => loadAttendance(attendancePage + 1);
+      btns.appendChild(nextBtn);
     } else {
       pagination.style.display = 'none';
     }
@@ -324,9 +361,9 @@ async function loadStudents() {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr>
-          <td><span class="cell-id">${row.student_id ?? '—'}</span></td>
-          <td>${row.name ?? '<span style="color:#64748b">—</span>'}</td>
-          <td>${formatDateTime(row.created_at)}</td>
+          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
+          <td>${row.name ? escapeHtml(row.name) : '<span style="color:#64748b">—</span>'}</td>
+          <td>${escapeHtml(formatDateTime(row.created_at))}</td>
           <td>${statusBadge(row.queue_status)}</td>
         </tr>
       `).join('');
@@ -355,12 +392,12 @@ async function loadQueue() {
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr>
-          <td><span class="cell-id">${row.student_id ?? '—'}</span></td>
-          <td style="font-size:11px;color:#94a3b8;word-break:break-all">${row.image_path ?? '—'}</td>
+          <td><span class="cell-id">${escapeHtml(row.student_id)}</span></td>
+          <td style="font-size:11px;color:#94a3b8;word-break:break-all">${escapeHtml(row.image_path)}</td>
           <td>${statusBadge(row.status)}</td>
-          <td>${formatDateTime(row.created_at)}</td>
-          <td>${row.processed_at ? formatDateTime(row.processed_at) : '<span style="color:#64748b">—</span>'}</td>
-          <td>${row.error_message ? `<span class="cell-error">${row.error_message}</span>` : '<span style="color:#64748b">—</span>'}</td>
+          <td>${escapeHtml(formatDateTime(row.created_at))}</td>
+          <td>${row.processed_at ? escapeHtml(formatDateTime(row.processed_at)) : '<span style="color:#64748b">—</span>'}</td>
+          <td>${row.error_message ? `<span class="cell-error">${escapeHtml(row.error_message)}</span>` : '<span style="color:#64748b">—</span>'}</td>
         </tr>
       `).join('');
     }
@@ -379,8 +416,15 @@ function startPolling() {
 }
 
 // ── Init ──
-document.getElementById('filter-date').addEventListener('change', () => loadAttendance(1));
-document.getElementById('filter-device').addEventListener('change', () => loadAttendance(1));
+document.getElementById('filter-date').addEventListener('change', () => {
+  // Clear known IDs to avoid incorrect highlight flashes on manual date change
+  knownIds.clear();
+  loadAttendance(1);
+});
+document.getElementById('filter-device').addEventListener('change', () => {
+  knownIds.clear();
+  loadAttendance(1);
+});
 
 loadStats();
 loadAttendance(1);
