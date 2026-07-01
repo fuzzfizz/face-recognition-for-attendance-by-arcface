@@ -61,7 +61,7 @@ def test_status_route(mock_status):
 @patch("app.dependencies.ADMIN_KEY", "secret")
 def test_train_now_unauthorized(mock_process):
     response = client.post("/train-now")
-    assert response.status_code == 422  # missing header
+    assert response.status_code == 401  # missing header
 
     response = client.post("/train-now", headers={"X-Admin-Key": "wrong"})
     assert response.status_code == 401  # unauthorized

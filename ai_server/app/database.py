@@ -106,21 +106,25 @@ def get_db():
 # ──────────────────────────────────────────────
 # User operations
 # ──────────────────────────────────────────────
-def upsert_user(student_id: str):
+def upsert_user(student_id: str, name: str = None):
     """Create user if not exists. Returns user dict/object."""
     if supabase_available():
-        return sb_upsert_user(student_id)
+        return sb_upsert_user(student_id, name)
     else:
         _init_sqlite()
         session = next(_get_sqlite_session())
         try:
             user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
             if not user:
-                user = _UserModel(student_id=student_id)
+                user = _UserModel(student_id=student_id, name=name)
                 session.add(user)
                 session.commit()
                 session.refresh(user)
-            return {"id": user.id, "student_id": user.student_id}
+            elif name:
+                user.name = name
+                session.commit()
+                session.refresh(user)
+            return {"id": user.id, "student_id": user.student_id, "name": user.name}
         finally:
             session.close()
 

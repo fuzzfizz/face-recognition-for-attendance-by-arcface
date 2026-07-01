@@ -17,25 +17,72 @@ from app.services.verification_service import verify_face
 # ── Registration Service ─────────────────────────────────────────────
 
 @pytest.mark.anyio
+@patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
 @patch("app.services.registration_service.insert_queue_item")
-async def test_register_images_success(mock_insert_queue, mock_upload_image, mock_upsert_user):
+async def test_register_images_success(mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor):
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     mock_upload_image.return_value = "http://storage.co/img.jpg"
+
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.app.get.return_value = [MagicMock()]
+    mock_get_processor.return_value = mock_processor
 
     # Create mock UploadFile
     mock_file = MagicMock(spec=UploadFile)
     mock_file.filename = "pic.jpg"
     mock_file.read = AsyncMock(return_value=b"image_content")
 
-    result = await register_images("S123", [mock_file])
+    result = await register_images("S123", "John Doe", [mock_file])
 
-    mock_upsert_user.assert_called_once_with("S123")
+    mock_upsert_user.assert_called_once_with("S123", "John Doe")
     mock_upload_image.assert_called_once_with(b"image_content", "S123", "jpg")
     mock_insert_queue.assert_called_once_with("S123", "http://storage.co/img.jpg")
     assert result["status"] == "pending"
     assert result["student_id"] == "S123"
+
+@pytest.mark.anyio
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_cannot_parse(mock_upsert_user, mock_get_processor):
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = None
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"invalid_bytes")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+    
+    assert exc_info.value.status_code == 400
+    assert "Cannot parse one of the image files." in exc_info.value.detail
+
+@pytest.mark.anyio
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_no_face(mock_upsert_user, mock_get_processor):
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.app.get.return_value = []
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"no_face_bytes")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+    
+    assert exc_info.value.status_code == 400
+    assert "No face detected in photo" in exc_info.value.detail
 
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_all_embeddings")

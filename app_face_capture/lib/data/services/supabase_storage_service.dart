@@ -50,6 +50,14 @@ class SupabaseStorageService {
     );
   }
 
+  /// Upserts user record to Supabase database.
+  Future<void> upsertUser(String studentId, String studentName) async {
+    await _supabaseClient.from('users').upsert({
+      'student_id': studentId,
+      'name': studentName,
+    }, onConflict: 'student_id');
+  }
+
   /// Initializes Supabase Client SDK.
   static Future<void> initialize() async {
     if (ApiConstants.supabaseUrl.isNotEmpty && ApiConstants.supabaseAnonKey.isNotEmpty) {

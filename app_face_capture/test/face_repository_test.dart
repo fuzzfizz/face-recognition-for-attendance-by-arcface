@@ -34,14 +34,14 @@ void main() {
         status: 'pending',
       );
 
-      when(() => mockApiService.register(any(), any()))
+      when(() => mockApiService.register(any(), any(), any()))
           .thenAnswer((_) async => fakeResponse);
 
       final files = [File('dummy1.jpg')];
-      final response = await repository.uploadPhotos('S001', files, UploadMethod.viaServer);
+      final response = await repository.uploadPhotos('S001', 'John Doe', files, UploadMethod.viaServer);
 
       expect(response, fakeResponse);
-      verify(() => mockApiService.register('S001', files)).called(1);
+      verify(() => mockApiService.register('S001', 'John Doe', files)).called(1);
       verifyZeroInteractions(mockSupabaseService);
     });
 
@@ -52,13 +52,16 @@ void main() {
         status: 'completed',
       );
 
+      when(() => mockSupabaseService.upsertUser(any(), any()))
+          .thenAnswer((_) async => {});
       when(() => mockSupabaseService.uploadPhotos(any(), any()))
           .thenAnswer((_) async => fakeResponse);
 
       final files = [File('dummy1.jpg')];
-      final response = await repository.uploadPhotos('S001', files, UploadMethod.directSupabase);
+      final response = await repository.uploadPhotos('S001', 'John Doe', files, UploadMethod.directSupabase);
 
       expect(response, fakeResponse);
+      verify(() => mockSupabaseService.upsertUser('S001', 'John Doe')).called(1);
       verify(() => mockSupabaseService.uploadPhotos('S001', files)).called(1);
       verifyZeroInteractions(mockApiService);
     });

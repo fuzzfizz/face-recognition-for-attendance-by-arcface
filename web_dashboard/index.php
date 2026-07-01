@@ -131,6 +131,7 @@ if (!file_exists(__DIR__ . '/config.php')) {
       <option value="failed">Failed</option>
     </select>
     <button class="btn-refresh" onclick="loadQueue()">↻ Refresh now</button>
+    <button class="btn-refresh" style="background:#a78bfa;color:#0f1117" onclick="triggerForceTraining()">⚙️ Force Training Now</button>
   </div>
   <div class="table-wrap">
     <table>
@@ -407,6 +408,32 @@ async function loadQueue() {
     }
   } catch (e) {
     setError('Queue error: ' + e.message);
+  }
+}
+
+async function triggerForceTraining() {
+  if (!confirm('This will process all pending registrations in the queue immediately. Proceed?')) {
+    return;
+  }
+  
+  const btn = document.querySelector('[onclick="triggerForceTraining()"]');
+  const oldText = btn.textContent;
+  btn.textContent = 'Processing...';
+  btn.disabled = true;
+  
+  try {
+    const res = await fetch('api/train.php', { method: 'POST' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || d.error || 'Server error');
+    
+    alert('Training completed successfully! Processed students: ' + (d.processed_students?.join(', ') || 'None'));
+    loadQueue();
+    loadStats();
+  } catch (e) {
+    alert('Training failed: ' + e.message);
+  } finally {
+    btn.textContent = oldText;
+    btn.disabled = false;
   }
 }
 

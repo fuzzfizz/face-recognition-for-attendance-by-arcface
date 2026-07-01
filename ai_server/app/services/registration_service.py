@@ -9,25 +9,39 @@ from app.database import (
     get_all_embeddings,
 )
 
-async def register_images(student_id: str, files: List[UploadFile]) -> dict:
+async def register_images(student_id: str, name: str, files: List[UploadFile]) -> dict:
     """
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
-    user = upsert_user(student_id)
+    user = upsert_user(student_id, name)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user record"
         )
 
-    queue_count = 0
+    from app.face_processor import get_face_processor
+    processor = get_face_processor()
+
+    # Pre-read and check faces first:
+    decoded_images = []
     for file in files:
         file_bytes = await file.read()
         if not file_bytes:
             continue
+        cv_img = processor.decode_image(file_bytes)
+        if cv_img is None:
+            raise HTTPException(status_code=400, detail="Cannot parse one of the image files.")
+        faces = processor.app.get(cv_img)
+        if not faces:
+            raise HTTPException(status_code=400, detail=f"No face detected in photo ({file.filename}). Please align your face in the camera.")
+        # Store for saving
+        decoded_images.append((file.filename, file_bytes))
 
-        ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
+    queue_count = 0
+    for filename, file_bytes in decoded_images:
+        ext = filename.split(".")[-1] if filename and "." in filename else "jpg"
 
         image_path = upload_image(file_bytes, student_id, ext)
         if not image_path:
@@ -66,8 +80,9 @@ def get_registration_status(student_id: str) -> dict:
                 "message": "Face extracted and saved successfully"
             }
 
+    from app.config import TRAINING_SCHEDULE_INFO
     return {
         "student_id": student_id,
         "status": "pending",
-        "message": "Waiting for AI processing (trigger /train-now)"
+        "message": f"Waiting for AI processing. Scheduled updates run {TRAINING_SCHEDULE_INFO}."
     }

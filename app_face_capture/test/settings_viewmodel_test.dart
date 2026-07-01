@@ -68,5 +68,20 @@ void main() {
       expect(result, true);
       verify(() => mockRepository.checkServerHealth()).called(1);
     });
+
+    test('isAdminAuthenticated defaults to false', () {
+      expect(viewModel.isAdminAuthenticated, false);
+    });
+
+    test('authenticateAdmin updates authenticated state and notifies listeners', () {
+      bool notified = false;
+      viewModel.addListener(() {
+        notified = true;
+      });
+
+      viewModel.authenticateAdmin(true);
+      expect(viewModel.isAdminAuthenticated, true);
+      expect(notified, true);
+    });
   });
 }

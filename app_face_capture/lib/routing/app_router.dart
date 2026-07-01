@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 import 'package:app_face_capture/presentation/views/home_screen.dart';
 import 'package:app_face_capture/presentation/views/capture_screen.dart';
 import 'package:app_face_capture/presentation/views/review_screen.dart';
@@ -8,6 +11,15 @@ import 'package:app_face_capture/presentation/views/admin_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    final settingsModel = context.read<SettingsViewModel>();
+    final path = state.uri.path;
+    
+    if ((path == '/admin' || path == '/settings') && !settingsModel.isAdminAuthenticated) {
+      return '/'; // Redirect to home if not unlocked
+    }
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/',
@@ -18,8 +30,11 @@ final GoRouter appRouter = GoRouter(
       path: '/capture',
       name: 'capture',
       builder: (context, state) {
-        final studentId = state.extra as String;
-        return CaptureScreen(studentId: studentId);
+        final args = state.extra as Map<String, dynamic>;
+        return CaptureScreen(
+          studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
+        );
       },
     ),
     GoRoute(
@@ -29,6 +44,7 @@ final GoRouter appRouter = GoRouter(
         final args = state.extra as Map<String, dynamic>;
         return ReviewScreen(
           studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
           imagePaths: List<String>.from(args['imagePaths'] as List),
         );
       },
@@ -40,6 +56,7 @@ final GoRouter appRouter = GoRouter(
         final args = state.extra as Map<String, dynamic>;
         return UploadScreen(
           studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
           imagePaths: List<String>.from(args['imagePaths'] as List),
         );
       },

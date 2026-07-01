@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:app_face_capture/presentation/viewmodels/admin_viewmodel.dart';
+import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -40,6 +41,7 @@ class _AdminScreenState extends State<AdminScreen> {
               icon: const Icon(Icons.logout),
               onPressed: () {
                 context.read<AdminViewModel>().logout();
+                context.read<SettingsViewModel>().authenticateAdmin(false);
               },
             ),
         ],
@@ -111,19 +113,19 @@ class _AdminScreenState extends State<AdminScreen> {
           }
 
           // Authenticated view
-          return Padding(
-            padding: const EdgeInsets.all(24.0),
+          return const Padding(
+            padding: EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Card(
+                Card(
                   child: Padding(
                     padding: EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Model Training Control',
+                          'Admin Panel',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -131,65 +133,13 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Direct Supabase Storage uploads do not trigger model training automatically. Press the button below to process all pending registrations and update the ArcFace embeddings model.',
+                          'Welcome to the admin console. Model training control has been removed and is managed automatically by the backend.',
                           style: TextStyle(color: Colors.black54),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                if (model.isLoading)
-                  const Center(
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Triggering training on backend server...'),
-                      ],
-                    ),
-                  )
-                else
-                  SizedBox(
-                    height: 54,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey.shade800,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => model.triggerTraining(),
-                      icon: const Icon(Icons.model_training),
-                      label: const Text(
-                        'Trigger Model Training Now',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 24),
-                if (model.result != null && model.result != 'Incorrect PIN')
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: model.result!.contains('success')
-                          ? Colors.green.shade50
-                          : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: model.result!.contains('success')
-                            ? Colors.green.shade200
-                            : Colors.red.shade200,
-                      ),
-                    ),
-                    child: Text(
-                      model.result!,
-                      style: TextStyle(
-                        color: model.result!.contains('success')
-                            ? Colors.green.shade900
-                            : Colors.red.shade900,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
               ],
             ),
           );

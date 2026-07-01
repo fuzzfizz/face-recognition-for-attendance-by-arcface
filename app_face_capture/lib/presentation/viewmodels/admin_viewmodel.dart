@@ -4,18 +4,13 @@ import 'package:app_face_capture/core/constants/api_constants.dart';
 import 'package:app_face_capture/data/services/face_api_service.dart';
 
 class AdminViewModel extends ChangeNotifier {
-  final FaceApiService _apiService;
-
   bool _authenticated = false;
   String? _result;
-  bool _isLoading = false;
 
-  AdminViewModel({FaceApiService? apiService})
-      : _apiService = apiService ?? FaceApiService();
+  AdminViewModel({FaceApiService? apiService});
 
   bool get authenticated => _authenticated;
   String? get result => _result;
-  bool get isLoading => _isLoading;
 
   /// Authenticate the administrator using the PIN.
   bool authenticate(String pin) {
@@ -29,29 +24,6 @@ class AdminViewModel extends ChangeNotifier {
       _result = 'Incorrect PIN';
       notifyListeners();
       return false;
-    }
-  }
-
-  /// Triggers the backend training pipeline.
-  Future<void> triggerTraining() async {
-    if (!_authenticated) {
-      _result = 'Unauthorized. Please authenticate first.';
-      notifyListeners();
-      return;
-    }
-
-    _isLoading = true;
-    _result = null;
-    notifyListeners();
-
-    try {
-      await _apiService.triggerTraining();
-      _result = 'Training triggered successfully!';
-    } catch (e) {
-      _result = 'Failed to trigger training: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 

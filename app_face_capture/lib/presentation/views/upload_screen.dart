@@ -8,11 +8,13 @@ import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
 
 class UploadScreen extends StatelessWidget {
   final String studentId;
+  final String studentName;
   final List<String> imagePaths;
 
   const UploadScreen({
     super.key,
     required this.studentId,
+    required this.studentName,
     required this.imagePaths,
   });
 
@@ -23,6 +25,7 @@ class UploadScreen extends StatelessWidget {
       create: (_) => UploadViewModel(
         repository: FaceRepository(),
         studentId: studentId,
+        studentName: studentName,
         imagePaths: imagePaths,
         method: settingsViewModel.uploadMethod,
       )..startUpload(),
@@ -84,7 +87,6 @@ class UploadScreen extends StatelessWidget {
 
   String _appBarTitle(UploadViewModel viewModel) {
     if (viewModel.isUploading) return 'Uploading...';
-    if (viewModel.isChecking) return 'Processing...';
     if (viewModel.isSuccess) return 'Success';
     if (viewModel.isFailed) return 'Failed';
     return 'Upload';
@@ -112,28 +114,6 @@ class UploadScreen extends StatelessWidget {
       );
     }
 
-    if (viewModel.isChecking) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 24),
-          Text(
-            'AI is processing your face data...',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This may take a moment',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-          ),
-        ],
-      );
-    }
-
     if (viewModel.isSuccess) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -149,15 +129,13 @@ class UploadScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Student ID: $studentId',
+            'Student: $studentName ($studentId)',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'Face data has been registered and is ready for attendance.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+            'Upload successful! Your photos are queued for processing.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),

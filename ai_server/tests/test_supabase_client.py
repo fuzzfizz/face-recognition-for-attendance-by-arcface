@@ -84,6 +84,22 @@ class TestUpsertUser:
         )
         assert result == fake_user
 
+    def test_uses_atomic_upsert_with_name(self, mock_sb):
+        fake_user = {"id": 1, "student_id": "S001", "name": "John Doe"}
+        (
+            mock_sb.table.return_value
+            .upsert.return_value
+            .execute.return_value
+        ) = MagicMock(data=[fake_user])
+
+        result = upsert_user("S001", "John Doe")
+
+        mock_sb.table.assert_called_with("users")
+        mock_sb.table().upsert.assert_called_with(
+            {"student_id": "S001", "name": "John Doe"}, on_conflict="student_id"
+        )
+        assert result == fake_user
+
     def test_returns_none_on_empty_response(self, mock_sb):
         (
             mock_sb.table.return_value
