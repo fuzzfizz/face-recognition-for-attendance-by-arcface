@@ -12,7 +12,7 @@ This document contains step-by-step instructions for:
 Before deploying, make sure your VM's firewall permits incoming traffic on port **8000** (or whichever port you choose to bind).
 * **AWS/GCP/Azure**: Add an inbound security group rule allowing **TCP Port 8000** from your edge devices or anywhere (`0.0.0.0/0`).
 
-### 2. Install Docker & Docker Compose
+### 2. Install Docker & Docker Compose on the VM
 If not already installed on your VM, run the following commands (Ubuntu/Debian example):
 
 ```bash
@@ -33,23 +33,42 @@ sudo systemctl enable docker
 sudo usermod -aG docker $USER
 ```
 
-### 3. Clone / Transfer Code to VM
-Transfer the `ai_server/` directory from your project to the VM. You can use `scp`, `rsync`, or clone your repository directly via git:
+### 3. Build & Publish the Docker Image (Local Machine / CI)
+Instead of copying your code to the VM to build it, build the image on your local machine (or in CI) and push it to a container registry (e.g., Docker Hub, GitHub Container Registry):
 
 ```bash
-git clone <your-repo-url>
-cd face-recognition-attendance/ai_server
+# 1. Build the Docker image locally
+docker build -t <your-docker-registry-username>/face-recognition-ai:latest -f Dockerfile .
+
+# 2. Push the image to the registry
+docker push <your-docker-registry-username>/face-recognition-ai:latest
 ```
 
-### 4. Configure Environment Variables
-Create a `.env` file in the same directory as `docker-compose.yml` to store your configuration:
+### 4. Setup Deployment Directory on the VM
+On the VM, you only need two files: `docker-compose.yml` and `.env`. You do **not** need to transfer the source code files.
+
+1. Create a deployment directory on the VM and navigate into it:
+   ```bash
+   mkdir -p ~/face-recognition-server && cd ~/face-recognition-server
+   ```
+2. Copy your `docker-compose.yml` file to this directory on the VM (e.g., using `scp` or copying/pasting).
+3. **Important**: In the VM's `docker-compose.yml`, change the `build: .` line under `services.face-recognition-ai` to point directly to your published image instead:
+   ```yaml
+   services:
+     face-recognition-ai:
+       image: <your-docker-registry-username>/face-recognition-ai:latest
+       container_name: face-recognition-ai-server
+       # ... keep other configuration (ports, volumes, environment) the same
+   ```
+
+### 5. Configure Environment Variables on the VM
+Create a `.env` file on the VM in the same directory as the `docker-compose.yml` to store your environment-specific configuration:
 
 ```bash
-cp .env.example .env
 nano .env
 ```
 
-Ensure your `.env` contains the required credentials:
+Ensure your `.env` contains the required credentials and configuration values (without baking them into the Docker image):
 
 ```ini
 # Supabase settings (For hybrid mode, leave blank to default to local SQLite mode)
@@ -65,14 +84,18 @@ SIMILARITY_THRESHOLD=0.60
 MODEL_NAME=buffalo_l
 ```
 
-### 5. Build and Start Container
-Run the following command to build the image and start the server in the background:
+### 6. Pull and Run the Container on the VM
+Run the following commands on the VM to pull the image from your registry and start the server:
 
 ```bash
-docker compose up -d --build
+# Pull the latest version of the image
+docker compose pull
+
+# Start the server in the background
+docker compose up -d
 ```
 
-### 6. Verify Server is Running
+### 7. Verify Server is Running
 Check the status of the running container:
 
 ```bash
@@ -103,22 +126,16 @@ Ensure you have the following installed on your local computer:
 * **Java Development Kit (JDK)**
 
 ### 2. Configure default server URL
-If you want the app to connect to your VM automatically upon installation, open `app_face_capture/lib/core/constants/api_constants.dart` and change `baseUrl` to your VM's public IP address:
+The default server URL is configured at build time using the `BASE_URL` environment variable via `--dart-define` (see Step 3 below). If not provided, it defaults to an empty string `""`, and must be configured inside the app settings at runtime.
 
-```dart
-// Change 'http://10.0.2.2:8000' to your VM's public IP address:
-static const String baseUrl = 'http://your-vm-ip-address:8000';
-```
-
-*(Note: Users can also manually update the Server URL inside the app settings at runtime.)*
-
-### 3. Build using environment parameters (Alternative)
+### 3. Build using environment parameters
 You can inject the configurations at build time without modifying Dart code by using `--dart-define` parameters:
 
 ```bash
 cd app_face_capture
 
 flutter build apk --release \
+  --dart-define=BASE_URL=http://your-vm-ip-address:8000 \
   --dart-define=SUPABASE_URL=https://your-project.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=your-anon-key \
   --dart-define=ADMIN_PIN=1234 \

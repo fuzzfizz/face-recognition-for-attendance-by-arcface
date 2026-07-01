@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app_face_capture/core/constants/storage_constants.dart';
+import 'package:app_face_capture/core/constants/api_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 
@@ -23,7 +24,7 @@ void main() {
       await viewModel.load();
 
       expect(viewModel.uploadMethod, UploadMethod.viaServer);
-      expect(viewModel.serverUrl, 'http://10.0.2.2:8000');
+      expect(viewModel.serverUrl, ApiConstants.baseUrl);
     });
 
     test('load retrieves saved values correctly', () async {
