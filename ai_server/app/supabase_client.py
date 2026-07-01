@@ -72,15 +72,28 @@ def insert_log(
     student_id: Optional[str],
     similarity_score: float,
     device_id: Optional[str],
-    supabase_user_id: Optional[str] = None
+    supabase_user_id: Optional[Any] = None
 ) -> bool:
     """Insert a check-in log into Supabase."""
     if not is_available():
         return False
     try:
         sb = get_supabase()
+        
+        actual_user_id = None
+        if supabase_user_id is not None:
+            try:
+                actual_user_id = int(supabase_user_id)
+            except ValueError:
+                pass
+                
+        if actual_user_id is None and student_id:
+            user_record = get_user(student_id)
+            if user_record:
+                actual_user_id = user_record.get("id")
+
         sb.table("check_in_logs").insert({
-            "user_id": supabase_user_id,
+            "user_id": actual_user_id,
             "student_id": student_id,
             "similarity_score": similarity_score,
             "device_id": device_id,

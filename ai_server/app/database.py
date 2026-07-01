@@ -152,8 +152,20 @@ def insert_log(student_id, similarity_score, device_id, user_id=None):
         _init_sqlite()
         session = next(_get_sqlite_session())
         try:
+            actual_user_id = None
+            if user_id is not None:
+                try:
+                    actual_user_id = int(user_id)
+                except ValueError:
+                    pass
+            
+            if actual_user_id is None and student_id:
+                user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
+                if user:
+                    actual_user_id = user.id
+
             log = _LogModel(
-                user_id=user_id,
+                user_id=actual_user_id,
                 student_id=student_id,
                 similarity_score=similarity_score,
                 device_id=device_id,
