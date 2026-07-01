@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 class ReviewScreen extends StatelessWidget {
   final String studentId;
+  final String studentName;
   final List<String> imagePaths;
 
   const ReviewScreen({
     super.key,
     required this.studentId,
+    required this.studentName,
     required this.imagePaths,
   });
 
@@ -27,7 +29,7 @@ class ReviewScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Student ID: $studentId',
+                  'Student: $studentName ($studentId)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -98,7 +100,13 @@ class ReviewScreen extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        context.goNamed('capture', extra: studentId);
+                        context.goNamed(
+                          'capture',
+                          extra: {
+                            'studentId': studentId,
+                            'studentName': studentName,
+                          },
+                        );
                       },
                       icon: const Icon(Icons.refresh),
                       label: const Text('Retake All'),
@@ -112,6 +120,7 @@ class ReviewScreen extends StatelessWidget {
                           'upload',
                           extra: {
                             'studentId': studentId,
+                            'studentName': studentName,
                             'imagePaths': imagePaths,
                           },
                         );

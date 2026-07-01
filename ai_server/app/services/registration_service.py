@@ -9,12 +9,12 @@ from app.database import (
     get_all_embeddings,
 )
 
-async def register_images(student_id: str, files: List[UploadFile]) -> dict:
+async def register_images(student_id: str, name: str, files: List[UploadFile]) -> dict:
     """
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
-    user = upsert_user(student_id)
+    user = upsert_user(student_id, name)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

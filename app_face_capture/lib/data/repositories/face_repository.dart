@@ -18,17 +18,19 @@ class FaceRepository {
 
   Future<RegistrationResponse> uploadPhotos(
     String studentId,
+    String studentName,
     List<File> images,
     UploadMethod method,
   ) async {
     if (method == UploadMethod.directSupabase) {
+      await _supabaseService.upsertUser(studentId, studentName);
       return await _supabaseService.uploadPhotos(studentId, images);
     } else {
       final batches = _batchImages(images, ApiConstants.maxPhotosPerUpload);
       RegistrationResponse? lastResponse;
 
       for (final batch in batches) {
-        lastResponse = await _apiService.register(studentId, batch);
+        lastResponse = await _apiService.register(studentId, studentName, batch);
       }
 
       return lastResponse!;

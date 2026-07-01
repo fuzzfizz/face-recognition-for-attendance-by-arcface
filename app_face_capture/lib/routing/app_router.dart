@@ -30,8 +30,11 @@ final GoRouter appRouter = GoRouter(
       path: '/capture',
       name: 'capture',
       builder: (context, state) {
-        final studentId = state.extra as String;
-        return CaptureScreen(studentId: studentId);
+        final args = state.extra as Map<String, dynamic>;
+        return CaptureScreen(
+          studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
+        );
       },
     ),
     GoRoute(
@@ -41,6 +44,7 @@ final GoRouter appRouter = GoRouter(
         final args = state.extra as Map<String, dynamic>;
         return ReviewScreen(
           studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
           imagePaths: List<String>.from(args['imagePaths'] as List),
         );
       },
@@ -52,6 +56,7 @@ final GoRouter appRouter = GoRouter(
         final args = state.extra as Map<String, dynamic>;
         return UploadScreen(
           studentId: args['studentId'] as String,
+          studentName: args['studentName'] as String,
           imagePaths: List<String>.from(args['imagePaths'] as List),
         );
       },

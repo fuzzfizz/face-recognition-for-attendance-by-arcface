@@ -29,9 +29,9 @@ async def test_register_images_success(mock_insert_queue, mock_upload_image, moc
     mock_file.filename = "pic.jpg"
     mock_file.read = AsyncMock(return_value=b"image_content")
 
-    result = await register_images("S123", [mock_file])
+    result = await register_images("S123", "John Doe", [mock_file])
 
-    mock_upsert_user.assert_called_once_with("S123")
+    mock_upsert_user.assert_called_once_with("S123", "John Doe")
     mock_upload_image.assert_called_once_with(b"image_content", "S123", "jpg")
     mock_insert_queue.assert_called_once_with("S123", "http://storage.co/img.jpg")
     assert result["status"] == "pending"

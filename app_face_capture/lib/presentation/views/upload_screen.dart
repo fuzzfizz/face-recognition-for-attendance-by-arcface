@@ -8,11 +8,13 @@ import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
 
 class UploadScreen extends StatelessWidget {
   final String studentId;
+  final String studentName;
   final List<String> imagePaths;
 
   const UploadScreen({
     super.key,
     required this.studentId,
+    required this.studentName,
     required this.imagePaths,
   });
 
@@ -23,6 +25,7 @@ class UploadScreen extends StatelessWidget {
       create: (_) => UploadViewModel(
         repository: FaceRepository(),
         studentId: studentId,
+        studentName: studentName,
         imagePaths: imagePaths,
         method: settingsViewModel.uploadMethod,
       )..startUpload(),
@@ -149,7 +152,7 @@ class UploadScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Student ID: $studentId',
+            'Student: $studentName ($studentId)',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 8),

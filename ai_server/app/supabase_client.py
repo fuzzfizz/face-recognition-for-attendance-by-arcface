@@ -31,7 +31,7 @@ def is_available() -> bool:
 # ──────────────────────────────────────────────
 # USERS
 # ──────────────────────────────────────────────
-def upsert_user(student_id: str) -> Optional[Dict[str, Any]]:
+def upsert_user(student_id: str, name: str = None) -> Optional[Dict[str, Any]]:
     """
     Create or retrieve a user in Supabase using an atomic upsert.
     Returns the user record dict or None if Supabase is unavailable.
@@ -40,8 +40,11 @@ def upsert_user(student_id: str) -> Optional[Dict[str, Any]]:
         return None
     try:
         sb = get_supabase()
+        payload = {"student_id": student_id}
+        if name:
+            payload["name"] = name
         response = sb.table("users").upsert(
-            {"student_id": student_id}, on_conflict="student_id"
+            payload, on_conflict="student_id"
         ).execute()
         return response.data[0] if response.data else None
     except Exception as e:

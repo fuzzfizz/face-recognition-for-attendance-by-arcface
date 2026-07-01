@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
@@ -11,8 +11,13 @@ import 'package:app_face_capture/presentation/widgets/face_guide_overlay.dart';
 
 class CaptureScreen extends StatefulWidget {
   final String studentId;
+  final String studentName;
 
-  const CaptureScreen({super.key, required this.studentId});
+  const CaptureScreen({
+    super.key,
+    required this.studentId,
+    required this.studentName,
+  });
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -71,6 +76,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           'review',
           extra: {
             'studentId': widget.studentId,
+            'studentName': widget.studentName,
             'imagePaths': viewModel.capturedPaths.toList(),
           },
         );

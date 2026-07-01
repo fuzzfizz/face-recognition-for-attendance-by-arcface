@@ -24,6 +24,7 @@ void main() {
       viewModel = UploadViewModel(
         repository: mockRepository,
         studentId: 'S001',
+        studentName: 'John Doe',
         imagePaths: ['dummy_path.jpg'],
         method: UploadMethod.viaServer,
       );
@@ -56,7 +57,7 @@ void main() {
           message: 'Face saved',
         );
 
-        when(() => mockRepository.uploadPhotos(any(), any(), any()))
+        when(() => mockRepository.uploadPhotos(any(), any(), any(), any()))
             .thenAnswer((_) async => fakeResponse);
 
         when(() => mockRepository.checkStatus(any(), method: any(named: 'method')))
@@ -71,14 +72,14 @@ void main() {
         expect(viewModel.uploadedCount, 1);
         expect(viewModel.progress, 1.0);
         
-        verify(() => mockRepository.uploadPhotos('S001', any(), UploadMethod.viaServer)).called(1);
+        verify(() => mockRepository.uploadPhotos('S001', 'John Doe', any(), UploadMethod.viaServer)).called(1);
         verify(() => mockRepository.checkStatus('S001', method: UploadMethod.viaServer)).called(1);
       });
     });
 
     test('startUpload upload failure sets state to failed', () {
       fakeAsync((async) {
-        when(() => mockRepository.uploadPhotos(any(), any(), any()))
+        when(() => mockRepository.uploadPhotos(any(), any(), any(), any()))
             .thenThrow(Exception('Connection error'));
 
         viewModel.startUpload();
@@ -87,7 +88,7 @@ void main() {
 
         expect(viewModel.state, UploadState.failed);
         expect(viewModel.errorMessage, contains('Connection error'));
-        verify(() => mockRepository.uploadPhotos('S001', any(), UploadMethod.viaServer)).called(1);
+        verify(() => mockRepository.uploadPhotos('S001', 'John Doe', any(), UploadMethod.viaServer)).called(1);
         verifyNever(() => mockRepository.checkStatus(any(), method: any(named: 'method')));
       });
     });
@@ -106,7 +107,7 @@ void main() {
           message: 'Processing',
         );
 
-        when(() => mockRepository.uploadPhotos(any(), any(), any()))
+        when(() => mockRepository.uploadPhotos(any(), any(), any(), any()))
             .thenAnswer((_) async => fakeResponse);
 
         when(() => mockRepository.checkStatus(any(), method: any(named: 'method')))

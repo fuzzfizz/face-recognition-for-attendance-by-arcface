@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   face-recognition-ai:
-    build: .
+    image: athit0900/face-recognition-ai-server:latest
     container_name: face-recognition-ai-server
     ports:
       - "8000:8000"
@@ -18,10 +18,16 @@ services:
       - PORT=8000
     volumes:
       - ./data:/app/data
-      - ~/.insightface:/home/appuser/.insightface  # Mount cached models
+      - ~/.insightface:/home/appuser/.insightface # Mount cached models
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

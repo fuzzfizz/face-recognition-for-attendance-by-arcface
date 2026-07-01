@@ -15,11 +15,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _studentIdController = TextEditingController();
+  final _studentNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _studentIdController.dispose();
+    _studentNameController.dispose();
     super.dispose();
   }
 
@@ -59,7 +61,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startCapture() {
     if (_formKey.currentState!.validate()) {
-      context.pushNamed('capture', extra: _studentIdController.text.trim());
+      context.pushNamed(
+        'capture',
+        extra: {
+          'studentId': _studentIdController.text.trim(),
+          'studentName': _studentNameController.text.trim(),
+        },
+      );
     }
   }
 
@@ -118,11 +126,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a student ID';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _studentNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Student Name',
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.text,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _startCapture(),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter a student ID';
+                        return 'Please enter student name';
                       }
                       return null;
                     },

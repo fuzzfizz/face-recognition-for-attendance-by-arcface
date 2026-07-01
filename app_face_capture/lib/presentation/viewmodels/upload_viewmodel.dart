@@ -8,6 +8,7 @@ enum UploadState { idle, uploading, checking, success, failed }
 class UploadViewModel extends ChangeNotifier {
   final FaceRepository _repository;
   final String studentId;
+  final String studentName;
   final List<String> imagePaths;
   final UploadMethod method;
 
@@ -18,6 +19,7 @@ class UploadViewModel extends ChangeNotifier {
   UploadViewModel({
     required FaceRepository repository,
     required this.studentId,
+    required this.studentName,
     required this.imagePaths,
     required this.method,
   }) : _repository = repository;
@@ -40,7 +42,7 @@ class UploadViewModel extends ChangeNotifier {
 
     try {
       final files = imagePaths.map((p) => File(p)).toList();
-      await _repository.uploadPhotos(studentId, files, method);
+      await _repository.uploadPhotos(studentId, studentName, files, method);
       _uploadedCount = imagePaths.length;
       notifyListeners();
 

@@ -12,10 +12,11 @@ class FaceApiService {
 
   String get _baseUrl => ApiConstants.baseUrl;
 
-  Future<RegistrationResponse> register(String studentId, List<File> images) async {
+  Future<RegistrationResponse> register(String studentId, String studentName, List<File> images) async {
     final uri = Uri.parse('$_baseUrl${ApiConstants.register}');
     final request = http.MultipartRequest('POST', uri);
     request.fields['student_id'] = studentId;
+    request.fields['name'] = studentName;
 
     for (final image in images) {
       request.files.add(await http.MultipartFile.fromPath('files', image.path));
