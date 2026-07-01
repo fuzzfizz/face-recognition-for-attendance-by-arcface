@@ -24,6 +24,7 @@ SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.60"))
 MODEL_NAME = os.getenv("MODEL_NAME", "buffalo_l")
 
 TRAINING_SCHEDULE_INFO = os.getenv("TRAINING_SCHEDULE_INFO", "daily at 19:00")
+TRAINING_SCHEDULE_TIMES = os.getenv("TRAINING_SCHEDULE_TIMES", "19:00")
 
 # Server Configuration
 HOST = os.getenv("HOST", "0.0.0.0")

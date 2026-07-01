@@ -32,8 +32,9 @@ def test_admin_auth_missing_header():
     with patch("app.dependencies.ADMIN_KEY", "secret-key"):
         client = TestClient(app)
         response = client.get("/protected")
-        # FastAPI returns 422 Unprocessable Entity when required header is missing
-        assert response.status_code == 422
+        # Now returns 401 Unauthorized instead of 422 because X-Admin-Key is optional
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Unauthorized"
 
 def test_admin_auth_empty_env_key():
     with patch("app.dependencies.ADMIN_KEY", ""):
