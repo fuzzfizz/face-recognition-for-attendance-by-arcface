@@ -17,9 +17,9 @@ services:
       - MODEL_NAME=${MODEL_NAME:-buffalo_l}
       - HOST=0.0.0.0
       - PORT=8000
+      - INSIGHTFACE_HOME=/app/data/.insightface
     volumes:
       - ./data:/app/data
-      - ~/.insightface:/home/appuser/.insightface # Mount cached models
     restart: unless-stopped
     healthcheck:
       test:
