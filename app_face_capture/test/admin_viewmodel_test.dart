@@ -20,7 +20,6 @@ void main() {
     test('initial values are correct', () {
       expect(viewModel.authenticated, false);
       expect(viewModel.result, null);
-      expect(viewModel.isLoading, false);
     });
 
     test('authenticate with correct PIN sets authenticated to true', () {
@@ -37,38 +36,6 @@ void main() {
       expect(result, false);
       expect(viewModel.authenticated, false);
       expect(viewModel.result, 'Incorrect PIN');
-    });
-
-    test('triggerTraining when not authenticated returns early with message', () async {
-      await viewModel.triggerTraining();
-
-      expect(viewModel.result, 'Unauthorized. Please authenticate first.');
-      verifyZeroInteractions(mockApiService);
-    });
-
-    test('triggerTraining success updates result message', () async {
-      viewModel.authenticate(ApiConstants.adminPin);
-
-      when(() => mockApiService.triggerTraining()).thenAnswer((_) async {});
-
-      await viewModel.triggerTraining();
-
-      expect(viewModel.result, 'Training triggered successfully!');
-      expect(viewModel.isLoading, false);
-      verify(() => mockApiService.triggerTraining()).called(1);
-    });
-
-    test('triggerTraining failure updates result message with error', () async {
-      viewModel.authenticate(ApiConstants.adminPin);
-
-      when(() => mockApiService.triggerTraining()).thenThrow(Exception('Backend error'));
-
-      await viewModel.triggerTraining();
-
-      expect(viewModel.result, contains('Failed to trigger training'));
-      expect(viewModel.result, contains('Backend error'));
-      expect(viewModel.isLoading, false);
-      verify(() => mockApiService.triggerTraining()).called(1);
     });
 
     test('logout resets authentication state', () {

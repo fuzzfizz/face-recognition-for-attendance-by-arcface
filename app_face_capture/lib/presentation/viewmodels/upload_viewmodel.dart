@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 
-enum UploadState { idle, uploading, checking, success, failed }
+enum UploadState { idle, uploading, success, failed }
 
 class UploadViewModel extends ChangeNotifier {
   final FaceRepository _repository;
@@ -26,7 +26,6 @@ class UploadViewModel extends ChangeNotifier {
 
   UploadState get state => _state;
   bool get isUploading => _state == UploadState.uploading;
-  bool get isChecking => _state == UploadState.checking;
   bool get isSuccess => _state == UploadState.success;
   bool get isFailed => _state == UploadState.failed;
   int get uploadedCount => _uploadedCount;

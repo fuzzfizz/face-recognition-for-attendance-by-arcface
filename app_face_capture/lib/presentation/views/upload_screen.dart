@@ -87,7 +87,6 @@ class UploadScreen extends StatelessWidget {
 
   String _appBarTitle(UploadViewModel viewModel) {
     if (viewModel.isUploading) return 'Uploading...';
-    if (viewModel.isChecking) return 'Processing...';
     if (viewModel.isSuccess) return 'Success';
     if (viewModel.isFailed) return 'Failed';
     return 'Upload';
@@ -110,28 +109,6 @@ class UploadScreen extends StatelessWidget {
           Text(
             '${viewModel.uploadedCount} / ${viewModel.totalCount} photos',
             style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      );
-    }
-
-    if (viewModel.isChecking) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 24),
-          Text(
-            'AI is processing your face data...',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This may take a moment',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
           ),
         ],
       );

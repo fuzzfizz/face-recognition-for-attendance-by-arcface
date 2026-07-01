@@ -36,7 +36,6 @@ void main() {
     test('initial state is idle', () {
       expect(viewModel.state, UploadState.idle);
       expect(viewModel.isUploading, false);
-      expect(viewModel.isChecking, false);
       expect(viewModel.isSuccess, false);
       expect(viewModel.isFailed, false);
       expect(viewModel.uploadedCount, 0);

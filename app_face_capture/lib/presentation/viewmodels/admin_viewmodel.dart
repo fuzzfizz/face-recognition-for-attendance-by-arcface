@@ -8,14 +8,12 @@ class AdminViewModel extends ChangeNotifier {
 
   bool _authenticated = false;
   String? _result;
-  bool _isLoading = false;
 
   AdminViewModel({FaceApiService? apiService})
       : _apiService = apiService ?? FaceApiService();
 
   bool get authenticated => _authenticated;
   String? get result => _result;
-  bool get isLoading => _isLoading;
 
   /// Authenticate the administrator using the PIN.
   bool authenticate(String pin) {
@@ -29,29 +27,6 @@ class AdminViewModel extends ChangeNotifier {
       _result = 'Incorrect PIN';
       notifyListeners();
       return false;
-    }
-  }
-
-  /// Triggers the backend training pipeline.
-  Future<void> triggerTraining() async {
-    if (!_authenticated) {
-      _result = 'Unauthorized. Please authenticate first.';
-      notifyListeners();
-      return;
-    }
-
-    _isLoading = true;
-    _result = null;
-    notifyListeners();
-
-    try {
-      await _apiService.triggerTraining();
-      _result = 'Training triggered successfully!';
-    } catch (e) {
-      _result = 'Failed to trigger training: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
