@@ -2,6 +2,7 @@ version: "3.8"
 
 services:
   face-recognition-ai:
+    build: .
     image: athit0900/face-recognition-ai-server:latest
     container_name: face-recognition-ai-server
     ports:

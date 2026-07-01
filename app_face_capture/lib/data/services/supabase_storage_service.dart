@@ -55,7 +55,7 @@ class SupabaseStorageService {
     await _supabaseClient.from('users').upsert({
       'student_id': studentId,
       'name': studentName,
-    });
+    }, onConflict: 'student_id');
   }
 
   /// Initializes Supabase Client SDK.
