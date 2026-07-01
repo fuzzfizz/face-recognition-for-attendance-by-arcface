@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:app_face_capture/core/constants/api_constants.dart';
+import 'package:app_face_capture/presentation/views/pin_dialog.dart';
+import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,9 +22,31 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _navigateToSettings() async {
+    final authenticated = await showDialog<bool>(
+      context: context,
+      builder: (context) => const PinInputDialog(),
+    );
+    if (authenticated == true && mounted) {
+      context.read<SettingsViewModel>().authenticateAdmin(true);
+      context.push('/settings');
+    }
+  }
+
+  void _navigateToAdmin() async {
+    final authenticated = await showDialog<bool>(
+      context: context,
+      builder: (context) => const PinInputDialog(),
+    );
+    if (authenticated == true && mounted) {
+      context.read<SettingsViewModel>().authenticateAdmin(true);
+      context.push('/admin');
+    }
+  }
+
   void _startCapture() {
     if (_formKey.currentState!.validate()) {
-      context.goNamed('capture', extra: _studentIdController.text.trim());
+      context.pushNamed('capture', extra: _studentIdController.text.trim());
     }
   }
 
@@ -33,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
+            onPressed: _navigateToSettings,
           ),
         ],
       ),
@@ -49,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   GestureDetector(
-                    onLongPress: () => context.go('/admin'),
+                    onLongPress: _navigateToAdmin,
                     child: Icon(
                       Icons.face_retouching_natural,
                       size: 80,

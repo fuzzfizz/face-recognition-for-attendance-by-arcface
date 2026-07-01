@@ -17,6 +17,14 @@ class SettingsViewModel extends ChangeNotifier {
   UploadMethod get uploadMethod => _uploadMethod;
   String get serverUrl => _serverUrl;
 
+  bool _isAdminAuthenticated = false;
+  bool get isAdminAuthenticated => _isAdminAuthenticated;
+
+  void authenticateAdmin(bool authenticated) {
+    _isAdminAuthenticated = authenticated;
+    notifyListeners();
+  }
+
   /// Load settings from SharedPreferences.
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
