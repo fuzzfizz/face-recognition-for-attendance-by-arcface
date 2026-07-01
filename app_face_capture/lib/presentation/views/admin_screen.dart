@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:app_face_capture/presentation/viewmodels/admin_viewmodel.dart';
+import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -40,6 +41,7 @@ class _AdminScreenState extends State<AdminScreen> {
               icon: const Icon(Icons.logout),
               onPressed: () {
                 context.read<AdminViewModel>().logout();
+                context.read<SettingsViewModel>().authenticateAdmin(false);
               },
             ),
         ],

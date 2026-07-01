@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:app_face_capture/core/constants/api_constants.dart';
 import 'package:app_face_capture/presentation/views/pin_dialog.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
+import 'package:app_face_capture/presentation/viewmodels/admin_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToSettings() async {
+    final settingsViewModel = context.read<SettingsViewModel>();
+    if (settingsViewModel.isAdminAuthenticated) {
+      context.push('/settings');
+      return;
+    }
     final authenticated = await showDialog<bool>(
       context: context,
       builder: (context) => const PinInputDialog(),
@@ -34,12 +40,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToAdmin() async {
+    final settingsViewModel = context.read<SettingsViewModel>();
+    if (settingsViewModel.isAdminAuthenticated) {
+      context.read<AdminViewModel>().authenticate(ApiConstants.adminPin);
+      context.push('/admin');
+      return;
+    }
     final authenticated = await showDialog<bool>(
       context: context,
       builder: (context) => const PinInputDialog(),
     );
     if (authenticated == true && mounted) {
       context.read<SettingsViewModel>().authenticateAdmin(true);
+      context.read<AdminViewModel>().authenticate(ApiConstants.adminPin);
       context.push('/admin');
     }
   }
