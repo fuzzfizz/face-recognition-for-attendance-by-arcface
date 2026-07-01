@@ -157,10 +157,8 @@ class UploadScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Face data has been registered and is ready for attendance.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+            'Upload successful! Your photos are queued for processing.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),

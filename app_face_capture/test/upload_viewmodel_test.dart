@@ -43,7 +43,7 @@ void main() {
       expect(viewModel.progress, 0.0);
     });
 
-    test('startUpload success transitions: uploading -> checking -> success', () {
+    test('startUpload success transitions: uploading -> success', () {
       fakeAsync((async) {
         final fakeResponse = RegistrationResponse(
           message: 'Success',
@@ -51,29 +51,20 @@ void main() {
           status: 'pending',
         );
 
-        final fakeStatus = RegistrationStatus(
-          studentId: 'S001',
-          status: 'completed',
-          message: 'Face saved',
-        );
-
         when(() => mockRepository.uploadPhotos(any(), any(), any(), any()))
             .thenAnswer((_) async => fakeResponse);
 
-        when(() => mockRepository.checkStatus(any(), method: any(named: 'method')))
-            .thenAnswer((_) async => fakeStatus);
-
         viewModel.startUpload();
         
-        // Elapse time to let the uploads and poll finish
-        async.elapse(const Duration(seconds: 5));
+        // Elapse time to let the uploads finish
+        async.elapse(const Duration(seconds: 1));
 
         expect(viewModel.state, UploadState.success);
         expect(viewModel.uploadedCount, 1);
         expect(viewModel.progress, 1.0);
         
         verify(() => mockRepository.uploadPhotos('S001', 'John Doe', any(), UploadMethod.viaServer)).called(1);
-        verify(() => mockRepository.checkStatus('S001', method: UploadMethod.viaServer)).called(1);
+        verifyNever(() => mockRepository.checkStatus(any(), method: any(named: 'method')));
       });
     });
 
@@ -90,36 +81,6 @@ void main() {
         expect(viewModel.errorMessage, contains('Connection error'));
         verify(() => mockRepository.uploadPhotos('S001', 'John Doe', any(), UploadMethod.viaServer)).called(1);
         verifyNever(() => mockRepository.checkStatus(any(), method: any(named: 'method')));
-      });
-    });
-
-    test('startUpload status polling timeout sets state to failed', () {
-      fakeAsync((async) {
-        final fakeResponse = RegistrationResponse(
-          message: 'Success',
-          studentId: 'S001',
-          status: 'pending',
-        );
-
-        final fakeStatus = RegistrationStatus(
-          studentId: 'S001',
-          status: 'pending',
-          message: 'Processing',
-        );
-
-        when(() => mockRepository.uploadPhotos(any(), any(), any(), any()))
-            .thenAnswer((_) async => fakeResponse);
-
-        when(() => mockRepository.checkStatus(any(), method: any(named: 'method')))
-            .thenAnswer((_) async => fakeStatus);
-
-        viewModel.startUpload();
-        
-        // Let it poll 30 times (each poll delay is 2 seconds, total 60 seconds)
-        async.elapse(const Duration(seconds: 65));
-
-        expect(viewModel.state, UploadState.failed);
-        expect(viewModel.errorMessage, 'Status check timed out. Please check later.');
       });
     });
   });

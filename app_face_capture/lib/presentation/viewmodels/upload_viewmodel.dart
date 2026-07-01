@@ -44,50 +44,13 @@ class UploadViewModel extends ChangeNotifier {
       final files = imagePaths.map((p) => File(p)).toList();
       await _repository.uploadPhotos(studentId, studentName, files, method);
       _uploadedCount = imagePaths.length;
+      _state = UploadState.success;
       notifyListeners();
-
-      // Move to checking state - TRAINING IS NOW ADMIN-ONLY
-      _state = UploadState.checking;
-      notifyListeners();
-
-      // Training is admin-only, user workflow ends with status checking
-
-      // Poll for status - Training is admin-only, user workflow ends with status checking
-      await _pollStatus();
     } catch (e) {
       _state = UploadState.failed;
       _errorMessage = e.toString();
       notifyListeners();
     }
-  }
-
-  Future<void> _pollStatus() async {
-    const maxAttempts = 30;
-    const delay = Duration(seconds: 2);
-
-    for (var i = 0; i < maxAttempts; i++) {
-      await Future.delayed(delay);
-      try {
-        final status = await _repository.checkStatus(studentId, method: method);
-        if (status.isCompleted) {
-          _state = UploadState.success;
-          notifyListeners();
-          return;
-        }
-        if (status.isFailed) {
-          _errorMessage = status.message;
-          _state = UploadState.failed;
-          notifyListeners();
-          return;
-        }
-      } catch (e) {
-        // Continue polling on network errors
-      }
-    }
-
-    _errorMessage = 'Status check timed out. Please check later.';
-    _state = UploadState.failed;
-    notifyListeners();
   }
 
   @override
