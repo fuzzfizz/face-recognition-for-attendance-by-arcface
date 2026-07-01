@@ -45,7 +45,7 @@ class FaceRepository {
       return RegistrationStatus(
         studentId: studentId,
         status: 'completed',
-        message: 'Images uploaded directly. Training must be triggered by an admin.',
+        message: 'Images uploaded directly. Training is managed by the backend scheduled update.',
       );
     }
     return await _apiService.checkStatus(studentId);

@@ -4,7 +4,6 @@ import 'package:fake_async/fake_async.dart';
 
 import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/models/registration_response.dart';
-import 'package:app_face_capture/data/models/registration_status.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
 

@@ -4,13 +4,10 @@ import 'package:app_face_capture/core/constants/api_constants.dart';
 import 'package:app_face_capture/data/services/face_api_service.dart';
 
 class AdminViewModel extends ChangeNotifier {
-  final FaceApiService _apiService;
-
   bool _authenticated = false;
   String? _result;
 
-  AdminViewModel({FaceApiService? apiService})
-      : _apiService = apiService ?? FaceApiService();
+  AdminViewModel({FaceApiService? apiService});
 
   bool get authenticated => _authenticated;
   String? get result => _result;

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:app_face_capture/core/constants/api_constants.dart';
-import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/views/pin_dialog.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
