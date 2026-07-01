@@ -81,13 +81,7 @@ def insert_log(
         sb = get_supabase()
         
         actual_user_id = None
-        if supabase_user_id is not None:
-            try:
-                actual_user_id = int(supabase_user_id)
-            except ValueError:
-                pass
-                
-        if actual_user_id is None and student_id:
+        if student_id:
             user_record = get_user(student_id)
             if user_record:
                 actual_user_id = user_record.get("id")
