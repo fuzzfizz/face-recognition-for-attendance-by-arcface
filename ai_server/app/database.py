@@ -214,7 +214,7 @@ def get_latest_check_in_log(student_id: str) -> Optional[dict]:
                     "student_id": log.student_id,
                     "similarity_score": log.similarity_score,
                     "device_id": log.device_id,
-                    "timestamp": log.timestamp
+                    "timestamp": log.timestamp.isoformat() if hasattr(log.timestamp, "isoformat") else log.timestamp
                 }
             return None
         finally:
