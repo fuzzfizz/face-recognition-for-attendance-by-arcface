@@ -75,7 +75,28 @@ def test_train_now_authorized(mock_process):
     response = client.post("/train-now", headers={"X-Admin-Key": "secret"})
     assert response.status_code == 200
     assert response.json()["message"] == "completed"
-    mock_process.assert_called_once()
+    mock_process.assert_called_once_with(limit=50)
+
+@patch("app.services.training_service.process_pending_queue")
+@patch("app.dependencies.ADMIN_KEY", "secret")
+def test_train_now_with_limit(mock_process):
+    mock_process.return_value = {"message": "completed", "processed_students": [], "total_pending": 0}
+    
+    response = client.post("/train-now?limit=10", headers={"X-Admin-Key": "secret"})
+    assert response.status_code == 200
+    assert response.json()["message"] == "completed"
+    mock_process.assert_called_once_with(limit=10)
+
+@patch("app.services.training_service.process_pending_queue")
+@patch("app.dependencies.ADMIN_KEY", "secret")
+def test_v1_train_authorized(mock_process):
+    mock_process.return_value = {"message": "completed", "processed_students": [], "total_pending": 0}
+    
+    response = client.post("/v1/train?limit=5", headers={"X-Admin-Key": "secret"})
+    assert response.status_code == 200
+    assert response.json()["message"] == "completed"
+    mock_process.assert_called_once_with(limit=5)
+
 
 
 # ── /verify ──────────────────────────────────────────────────────────

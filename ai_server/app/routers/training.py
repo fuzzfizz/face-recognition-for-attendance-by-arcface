@@ -7,6 +7,6 @@ from app.services import training_service
 router = APIRouter(tags=["training"])
 
 @router.post("/train-now", response_model=TrainResponse)
-def train(admin=Depends(require_admin)):
+def train(limit: int = 50, admin=Depends(require_admin)):
     """Process pending queue items immediately."""
-    return training_service.process_pending_queue()
+    return training_service.process_pending_queue(limit=limit)

@@ -122,11 +122,41 @@ def test_process_pending_queue_success(
     mock_get_pending.assert_called_once()
     mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
     mock_processor.extract_face_embedding.assert_called_once()
-    mock_update_status.assert_called_once_with(1, "completed")
+    mock_update_status.assert_called_once_with(1, "completed", None)
     mock_save.assert_called_once()
     mock_invalidate.assert_called_once()
-    assert result["message"] == "Training completed"
+    assert result["message"] == "Training completed for batch"
     assert "S123" in result["processed_students"]
+
+
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+def test_process_pending_queue_batching(
+    mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
+):
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"},
+        {"id": 2, "student_id": "S123", "image_path": "/path/2.jpg"},
+        {"id": 3, "student_id": "S456", "image_path": "/path/3.jpg"}
+    ]
+    mock_processor = MagicMock()
+    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    mock_get_all.return_value = []
+
+    result = process_pending_queue(limit=50)
+
+    assert result["message"] == "Training completed for batch"
+    assert "S123" in result["processed_students"]
+    assert "S456" in result["processed_students"]
+    assert mock_save.call_count == 2  # Once for S123, once for S456 (periodic saving)
+    assert mock_update_status.call_count == 3
+
 
 
 # ── Verification Service ─────────────────────────────────────────────
