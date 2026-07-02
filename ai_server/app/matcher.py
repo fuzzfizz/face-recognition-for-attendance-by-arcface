@@ -73,6 +73,9 @@ def match_face(query_embedding: list) -> dict | None:
         return None
 
     query_vec = np.array(query_embedding)
+    query_norm = np.linalg.norm(query_vec)
+    if query_norm > 0:
+        query_vec = query_vec / query_norm
 
     best_match = None
     max_sim = -1.0
@@ -84,6 +87,10 @@ def match_face(query_embedding: list) -> dict | None:
 
         for stored_emb in user_data["embeddings"]:
             stored_vec = np.array(stored_emb)
+            stored_norm = np.linalg.norm(stored_vec)
+            if stored_norm > 0:
+                stored_vec = stored_vec / stored_norm
+                
             similarity = float(np.dot(query_vec, stored_vec))
 
             if similarity > max_sim:

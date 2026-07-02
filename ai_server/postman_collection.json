@@ -12,6 +12,11 @@
       "type": "string"
     },
     {
+      "key": "adminKey",
+      "value": "your-secret-admin-key",
+      "type": "string"
+    },
+    {
       "key": "student_id",
       "value": "6600001",
       "type": "string"
@@ -61,6 +66,12 @@
               "value": "{{student_id}}",
               "type": "text",
               "description": "Student ID (e.g. 6600001)"
+            },
+            {
+              "key": "name",
+              "value": "John Doe",
+              "type": "text",
+              "description": "Student Name (e.g. John Doe)"
             },
             {
               "key": "files",
@@ -120,7 +131,13 @@
       "description": "Manually trigger AI processing for all pending queue items. Extracts face embeddings and updates the .pkl file.\n\nWorks with both Supabase (queue in PostgreSQL) and SQLite (local queue).",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          {
+            "key": "X-Admin-Key",
+            "value": "{{adminKey}}",
+            "type": "text"
+          }
+        ],
         "body": {
           "mode": "formdata",
           "formdata": []
