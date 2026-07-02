@@ -116,6 +116,24 @@ def get_logs(limit: int = 50) -> List[Dict[str, Any]]:
         return []
 
 
+def get_latest_check_in_log(student_id: str) -> Optional[Dict[str, Any]]:
+    """Get the latest check-in log for a student from Supabase."""
+    if not is_available():
+        return None
+    try:
+        response = get_supabase().table("check_in_logs") \
+            .select("*") \
+            .eq("student_id", student_id) \
+            .order("timestamp", desc=True) \
+            .limit(1) \
+            .execute()
+        return response.data[0] if response.data else None
+    except Exception as e:
+        print(f"[Supabase] get_latest_check_in_log error: {e}")
+        return None
+
+
+
 # ──────────────────────────────────────────────
 # REGISTRATION QUEUE
 # ──────────────────────────────────────────────
@@ -156,16 +174,20 @@ def update_queue_item(queue_id: int, status: str, error_message: Optional[str] =
         return False
 
 
-def get_pending_queue_items() -> List[Dict[str, Any]]:
+def get_pending_queue_items(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Get all pending registration queue items from Supabase."""
     if not is_available():
         return []
     try:
-        response = get_supabase().table("registration_queue").select("*").eq("status", "pending").execute()
+        query = get_supabase().table("registration_queue").select("*").eq("status", "pending")
+        if limit is not None:
+            query = query.limit(limit)
+        response = query.execute()
         return response.data or []
     except Exception as e:
         print(f"[Supabase] get_pending_queue_items error: {e}")
         return []
+
 
 
 # ──────────────────────────────────────────────

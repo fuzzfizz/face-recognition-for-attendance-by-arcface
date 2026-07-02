@@ -114,3 +114,31 @@ class TestUpsertUser:
         mock_sb.table.side_effect = Exception("db error")
         result = upsert_user("S003")
         assert result is None
+
+
+# ── get_pending_queue_items with limit ────────────────────────────────
+
+def test_get_pending_queue_items_with_limit(mock_sb):
+    from app.supabase_client import get_pending_queue_items
+    mock_sb.table().select().eq().limit().execute.return_value.data = [{"id": 1}]
+    res = get_pending_queue_items(limit=5)
+    assert len(res) == 1
+    mock_sb.table.assert_called_with("registration_queue")
+    mock_sb.table().select.assert_called_with("*")
+    mock_sb.table().select().eq.assert_called_with("status", "pending")
+    mock_sb.table().select().eq().limit.assert_called_with(5)
+
+
+# ── get_latest_check_in_log ───────────────────────────────────────────
+
+def test_get_latest_check_in_log(mock_sb):
+    from app.supabase_client import get_latest_check_in_log
+    mock_sb.table().select().eq().order().limit().execute.return_value.data = [{"id": 42, "student_id": "S123", "timestamp": "2026-07-02T12:00:00Z"}]
+    res = get_latest_check_in_log("S123")
+    assert res["id"] == 42
+    mock_sb.table.assert_called_with("check_in_logs")
+    mock_sb.table().select.assert_called_with("*")
+    mock_sb.table().select().eq.assert_called_with("student_id", "S123")
+    mock_sb.table().select().eq().order.assert_called_with("timestamp", desc=True)
+    mock_sb.table().select().eq().order().limit.assert_called_with(1)
+
