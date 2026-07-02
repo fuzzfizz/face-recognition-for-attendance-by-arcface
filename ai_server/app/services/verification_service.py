@@ -5,6 +5,7 @@ from typing import Optional
 from app.database import (
     insert_log,
     match_face_embedding,
+    get_latest_check_in_log,
 )
 from app.face_processor import get_face_processor
 from app.utils.image_utils import decode_image_bytes, decode_base64_image
@@ -52,7 +53,8 @@ def verify_face(
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "message": None
         }
 
     # Match against local .pkl embeddings
@@ -60,18 +62,49 @@ def verify_face(
 
     if match:
         student_id = match.get("student_id") or match.get("name", "Unknown")
+        user_id = match.get("user_id")
+
+        latest_log = get_latest_check_in_log(student_id)
+        if latest_log:
+            latest_time = latest_log["timestamp"]
+            if isinstance(latest_time, str):
+                if latest_time.endswith('Z'):
+                    latest_time = latest_time[:-1] + '+00:00'
+                try:
+                    latest_dt = datetime.datetime.fromisoformat(latest_time)
+                except ValueError:
+                    try:
+                        latest_dt = datetime.datetime.strptime(latest_time, "%Y-%m-%d %H:%M:%S.%f")
+                    except ValueError:
+                        latest_dt = datetime.datetime.strptime(latest_time[:19], "%Y-%m-%dT%H:%M:%S")
+                if latest_dt.tzinfo is not None:
+                    latest_dt = latest_dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            else:
+                latest_dt = latest_time
+
+            elapsed = (datetime.datetime.utcnow() - latest_dt).total_seconds()
+            if elapsed < 300:
+                return {
+                    "match": True,
+                    "student_id": student_id,
+                    "similarity_score": match["similarity"],
+                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                    "message": "Student has already checked in within the last 5 minutes."
+                }
+
         insert_log(
             student_id=student_id,
             similarity_score=match["similarity"],
             device_id=device_id,
-            user_id=match.get("user_id"),
+            user_id=user_id,
         )
 
         return {
             "match": True,
             "student_id": student_id,
             "similarity_score": match["similarity"],
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "message": None
         }
     else:
         insert_log(student_id=None, similarity_score=0.0, device_id=device_id)
@@ -79,5 +112,6 @@ def verify_face(
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "message": None
         }

@@ -183,3 +183,28 @@ def test_verify_face_match(mock_insert_log, mock_match, mock_decode, mock_get_pr
     assert result["match"] is True
     assert result["student_id"] == "S123"
     assert result["similarity_score"] == 0.85
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.match_face_embedding")
+@patch("app.services.verification_service.get_latest_check_in_log")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_cooldown_active(mock_insert, mock_get_latest, mock_match, mock_decode, mock_get_processor):
+    import datetime
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    mock_match.return_value = {"student_id": "S123", "similarity": 0.85, "user_id": 1}
+    
+    # Mock check-in 2 minutes ago (120 seconds ago)
+    two_mins_ago = datetime.datetime.utcnow() - datetime.timedelta(minutes=2)
+    mock_get_latest.return_value = {"timestamp": two_mins_ago}
+
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
+
+    assert result["match"] is True
+    assert "already checked in" in result["message"]
+    mock_insert.assert_not_called()  # Bypassed DB insert
+

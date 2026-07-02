@@ -22,6 +22,7 @@ class VerifyResponse(BaseModel):
     student_id: Optional[str]
     similarity_score: float
     timestamp: str
+    message: Optional[str] = None
 
 class RegistrationStatusResponse(BaseModel):
     student_id: str
