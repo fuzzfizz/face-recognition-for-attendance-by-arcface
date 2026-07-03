@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
+import 'package:app_face_capture/data/models/registration_status.dart';
 
 class UploadScreen extends StatelessWidget {
   final String studentId;
@@ -92,6 +94,33 @@ class UploadScreen extends StatelessWidget {
     return 'Upload';
   }
 
+  String _getPromptText(int count) {
+    switch (count) {
+      case 0:
+        return 'Look straight at the camera (Neutral)';
+      case 1:
+        return 'Smile naturally';
+      case 2:
+        return 'Turn your head slightly to the left';
+      case 3:
+        return 'Turn your head slightly to the right';
+      case 4:
+        return 'Tilt your head slightly up';
+      case 5:
+        return 'Tilt your head slightly down';
+      case 6:
+        return 'If wearing glasses or mask, please remove them';
+      case 7:
+        return 'Blink your eyes once';
+      case 8:
+        return 'Show a different expression (e.g. surprised)';
+      case 9:
+        return 'Final look straight at the camera';
+      default:
+        return 'Look straight at the camera';
+    }
+  }
+
   Widget _buildBody(BuildContext context, UploadViewModel viewModel) {
     if (viewModel.isUploading) {
       return Column(
@@ -152,24 +181,158 @@ class UploadScreen extends StatelessWidget {
     }
 
     if (viewModel.isFailed) {
+      final hasValidationErrors = viewModel.validationResults.isNotEmpty;
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_rounded, size: 96, color: Colors.red),
-          const SizedBox(height: 24),
+          Icon(
+            hasValidationErrors ? Icons.warning_amber_rounded : Icons.error_rounded,
+            size: 64,
+            color: hasValidationErrors ? Colors.orange : Colors.red,
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Registration Failed',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            hasValidationErrors ? 'Verification Issue' : 'Registration Failed',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
-            viewModel.errorMessage ?? 'An unknown error occurred.',
+            hasValidationErrors
+                ? 'Some photos did not pass face validation. Please retake the failed photos.'
+                : (viewModel.errorMessage ?? 'An unknown error occurred.'),
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
+          if (hasValidationErrors)
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: viewModel.imagePaths.length,
+                itemBuilder: (context, index) {
+                  final localPath = viewModel.imagePaths[index];
+                  final filename = localPath.split('/').last;
+
+                  final results =
+                      viewModel.validationResults.where((r) => r.filename == filename);
+                  final result = results.isNotEmpty ? results.first : null;
+                  final passed = result?.passed ?? false;
+                  final errorMsg = result?.error ?? 'Unknown error';
+
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    elevation: 2,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(localPath),
+                          fit: BoxFit.cover,
+                        ),
+                        if (result != null && !passed)
+                          Container(
+                            color: Colors.black.withOpacity(0.4),
+                          ),
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: result == null
+                                  ? Colors.grey
+                                  : (passed ? Colors.green : Colors.red),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              result == null
+                                  ? 'Unchecked'
+                                  : (passed ? 'Passed' : 'Failed'),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (result != null && !passed)
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            right: 8,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    errorMsg,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.red.shade900,
+                                      textStyle: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    onPressed: () async {
+                                      final prompt = _getPromptText(index);
+                                      final newPath =
+                                          await context.pushNamed<String>(
+                                        'single_capture',
+                                        extra: {'prompt': prompt},
+                                      );
+                                      if (newPath != null) {
+                                        viewModel.replacePhoto(index, newPath);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.camera_alt, size: 14),
+                                    label: const Text('Retake'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            )
+          else
+            const SizedBox(height: 32),
           Row(
             children: [
               Expanded(
@@ -182,8 +345,10 @@ class UploadScreen extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () => viewModel.startUpload(),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  icon: Icon(
+                    hasValidationErrors ? Icons.cloud_upload : Icons.refresh,
+                  ),
+                  label: Text(hasValidationErrors ? 'Re-upload' : 'Retry'),
                 ),
               ),
             ],

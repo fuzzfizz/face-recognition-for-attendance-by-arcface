@@ -28,6 +28,24 @@ class FaceApiService {
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       return RegistrationResponse.fromJson(json);
+    } else if (response.statusCode == 400) {
+      try {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json.containsKey('detail') && json['detail'] is Map) {
+          final detail = json['detail'] as Map<String, dynamic>;
+          if (detail.containsKey('results')) {
+            final message = detail['message'] as String? ?? 'Face verification failed';
+            final resultsJson = detail['results'] as List<dynamic>;
+            final results = resultsJson
+                .map((r) => FaceValidationResult.fromJson(r as Map<String, dynamic>))
+                .toList();
+            throw FaceVerificationException(message: message, results: results);
+          }
+        }
+      } catch (e) {
+        if (e is FaceVerificationException) rethrow;
+      }
+      throw Exception('Registration failed: ${response.statusCode} ${response.body}');
     } else {
       throw Exception('Registration failed: ${response.statusCode} ${response.body}');
     }

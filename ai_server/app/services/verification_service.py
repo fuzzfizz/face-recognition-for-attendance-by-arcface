@@ -77,10 +77,11 @@ def verify_face(
                         latest_dt = datetime.datetime.strptime(latest_time, "%Y-%m-%d %H:%M:%S.%f")
                     except ValueError:
                         latest_dt = datetime.datetime.strptime(latest_time[:19], "%Y-%m-%dT%H:%M:%S")
-                if latest_dt.tzinfo is not None:
-                    latest_dt = latest_dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
             else:
                 latest_dt = latest_time
+
+            if latest_dt.tzinfo is not None:
+                latest_dt = latest_dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
 
             elapsed = (datetime.datetime.utcnow() - latest_dt).total_seconds()
             if elapsed < 300:

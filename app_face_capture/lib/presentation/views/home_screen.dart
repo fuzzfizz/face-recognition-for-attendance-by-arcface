@@ -6,6 +6,7 @@ import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/views/pin_dialog.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 import 'package:app_face_capture/presentation/viewmodels/admin_viewmodel.dart';
+import 'package:app_face_capture/data/models/registration_status.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,118 @@ class _HomeScreenState extends State<HomeScreen> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isCheckingStatus = false;
+
+  void _showStatusDialog(BuildContext context, {required String studentId, RegistrationStatus? status, String? errorMessage}) {
+    final theme = Theme.of(context);
+    
+    // Determine status details
+    String title = 'Status Check';
+    IconData icon = Icons.info_outline;
+    Color iconColor = theme.colorScheme.primary;
+    String mainMessage = '';
+    String subMessage = '';
+    bool showRegisterButton = false;
+
+    if (errorMessage != null) {
+      if (errorMessage.contains('404')) {
+        title = 'No Record Found';
+        icon = Icons.person_off_rounded;
+        iconColor = Colors.orange.shade700;
+        mainMessage = 'No registration found for student ID: $studentId';
+        subMessage = 'This student has not submitted any face registration photos yet.';
+        showRegisterButton = true;
+      } else {
+        title = 'Status Check Error';
+        icon = Icons.error_outline_rounded;
+        iconColor = Colors.red;
+        mainMessage = 'Could not retrieve status';
+        subMessage = errorMessage;
+      }
+    } else if (status != null) {
+      if (status.status == 'completed') {
+        title = 'Registration Complete';
+        icon = Icons.check_circle_rounded;
+        iconColor = Colors.green.shade700;
+        mainMessage = 'Face recognition is active!';
+        subMessage = 'The student is fully registered and can check in using the kiosk devices.';
+      } else if (status.status == 'pending') {
+        title = 'Training in Progress';
+        icon = Icons.hourglass_top_rounded;
+        iconColor = Colors.blue.shade700;
+        mainMessage = 'Pending AI training';
+        subMessage = status.message;
+      } else {
+        title = 'Status: ${status.status.toUpperCase()}';
+        icon = Icons.info_rounded;
+        iconColor = Colors.grey.shade700;
+        mainMessage = status.message;
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 64, color: iconColor),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Student ID: $studentId',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                mainMessage,
+                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+              if (subMessage.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  subMessage,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (showRegisterButton) ...[
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _studentIdController.text = studentId;
+                      },
+                      child: const Text('Register Now'),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Dismiss'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _checkStatus() async {
     final studentId = _studentIdController.text.trim();
@@ -39,39 +152,11 @@ class _HomeScreenState extends State<HomeScreen> {
         method: settingsViewModel.uploadMethod,
       );
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Registration Status'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Student ID: ${status.studentId}'),
-                const SizedBox(height: 8),
-                Text('Status: ${status.status.toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Text(status.message),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
-            ],
-          ),
-        );
+        _showStatusDialog(context, studentId: studentId, status: status);
       }
     } catch (e) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error'),
-            content: Text('Could not retrieve status: ${e.toString()}'),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
-            ],
-          ),
-        );
+        _showStatusDialog(context, studentId: studentId, errorMessage: e.toString());
       }
     } finally {
       if (mounted) {

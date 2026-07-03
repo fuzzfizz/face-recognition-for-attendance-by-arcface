@@ -17,11 +17,17 @@ from app.services.verification_service import verify_face
 # ── Registration Service ─────────────────────────────────────────────
 
 @pytest.mark.anyio
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
 @patch("app.services.registration_service.insert_queue_item")
-async def test_register_images_success(mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor):
+async def test_register_images_success(
+    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor,
+    mock_get_all_embeddings, mock_save_all_embeddings
+):
+    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     mock_upload_image.return_value = "http://storage.co/img.jpg"
 
@@ -37,6 +43,8 @@ async def test_register_images_success(mock_insert_queue, mock_upload_image, moc
 
     result = await register_images("S123", "John Doe", [mock_file])
 
+    mock_get_all_embeddings.assert_called_once()
+    mock_save_all_embeddings.assert_called_once_with([])
     mock_upsert_user.assert_called_once_with("S123", "John Doe")
     mock_upload_image.assert_called_once_with(b"image_content", "S123", "jpg")
     mock_insert_queue.assert_called_once_with("S123", "http://storage.co/img.jpg")
@@ -44,9 +52,14 @@ async def test_register_images_success(mock_insert_queue, mock_upload_image, moc
     assert result["student_id"] == "S123"
 
 @pytest.mark.anyio
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
-async def test_register_images_cannot_parse(mock_upsert_user, mock_get_processor):
+async def test_register_images_cannot_parse(
+    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_save_all_embeddings
+):
+    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     
     mock_processor = MagicMock()
@@ -61,12 +74,18 @@ async def test_register_images_cannot_parse(mock_upsert_user, mock_get_processor
         await register_images("S123", "John Doe", [mock_file])
     
     assert exc_info.value.status_code == 400
-    assert "Cannot parse one of the image files." in exc_info.value.detail
+    assert exc_info.value.detail["message"] == "Some photos failed face verification."
+    assert exc_info.value.detail["results"][0]["error"] == "Cannot parse image file"
 
 @pytest.mark.anyio
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
-async def test_register_images_no_face(mock_upsert_user, mock_get_processor):
+async def test_register_images_no_face(
+    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_save_all_embeddings
+):
+    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     
     mock_processor = MagicMock()
@@ -82,7 +101,8 @@ async def test_register_images_no_face(mock_upsert_user, mock_get_processor):
         await register_images("S123", "John Doe", [mock_file])
     
     assert exc_info.value.status_code == 400
-    assert "No face detected in photo" in exc_info.value.detail
+    assert exc_info.value.detail["message"] == "Some photos failed face verification."
+    assert exc_info.value.detail["results"][0]["error"] == "No face detected"
 
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_all_embeddings")
@@ -154,7 +174,7 @@ def test_process_pending_queue_batching(
     assert result["message"] == "Training completed for batch"
     assert "S123" in result["processed_students"]
     assert "S456" in result["processed_students"]
-    assert mock_save.call_count == 2  # Once for S123, once for S456 (periodic saving)
+    assert mock_save.call_count == 1  # Called once at the end
     assert mock_update_status.call_count == 3
 
 
@@ -207,4 +227,119 @@ def test_verify_face_cooldown_active(mock_insert, mock_get_latest, mock_match, m
     assert result["match"] is True
     assert "already checked in" in result["message"]
     mock_insert.assert_not_called()  # Bypassed DB insert
+
+
+# ── New Tests for optimized training and timezone normalization ─────
+
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+def test_process_pending_queue_embedding_appending_and_capping(
+    mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
+):
+    # Setup: S123 already has 19 embeddings in the database
+    existing_embeddings = [[0.1] * 512] * 19
+    mock_get_all.return_value = [
+        {
+            "user_id": "S123",
+            "name": "S123",
+            "student_id": "S123",
+            "embeddings": existing_embeddings.copy()
+        }
+    ]
+    
+    # We will process 3 pending images for S123
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"},
+        {"id": 2, "student_id": "S123", "image_path": "/path/2.jpg"},
+        {"id": 3, "student_id": "S123", "image_path": "/path/3.jpg"}
+    ]
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.extract_face_embedding.side_effect = [
+        {"embedding": [0.2] * 512},
+        {"embedding": [0.3] * 512},
+        {"embedding": [0.4] * 512}
+    ]
+    mock_get_processor.return_value = mock_processor
+
+    # Track order of database status updates vs. pickle file saving to assert crash resilience
+    call_order = []
+    mock_save.side_effect = lambda *args: call_order.append("save_embeddings")
+    mock_update_status.side_effect = lambda *args: call_order.append("update_status")
+
+    result = process_pending_queue(limit=50)
+
+    assert result["message"] == "Training completed for batch"
+    assert "S123" in result["processed_students"]
+    
+    # Assert that save was called with the capped embeddings (19 + 3 = 22, capped at latest 20)
+    mock_save.assert_called_once()
+    saved_list = mock_save.call_args[0][0]
+    assert len(saved_list) == 1
+    assert saved_list[0]["student_id"] == "S123"
+    assert len(saved_list[0]["embeddings"]) == 20
+    # The last 3 embeddings should be the new ones we just added
+    assert saved_list[0]["embeddings"][-1] == [0.4] * 512
+    assert saved_list[0]["embeddings"][-2] == [0.3] * 512
+    assert saved_list[0]["embeddings"][-3] == [0.2] * 512
+    
+    # Check calling order: saving embeddings should occur before updating database status
+    assert "save_embeddings" in call_order
+    assert "update_status" in call_order
+    save_idx = call_order.index("save_embeddings")
+    update_idx = call_order.index("update_status")
+    assert save_idx < update_idx
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.match_face_embedding")
+@patch("app.services.verification_service.get_latest_check_in_log")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_timezone_aware_datetime(mock_insert, mock_get_latest, mock_match, mock_decode, mock_get_processor):
+    import datetime
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    mock_match.return_value = {"student_id": "S123", "similarity": 0.85, "user_id": 1}
+    
+    # Mock check-in 2 minutes ago with UTC timezone
+    tz_aware_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)
+    mock_get_latest.return_value = {"timestamp": tz_aware_time}
+
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
+
+    assert result["match"] is True
+    assert "already checked in" in result["message"]
+    mock_insert.assert_not_called()
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.match_face_embedding")
+@patch("app.services.verification_service.get_latest_check_in_log")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_timezone_aware_string(mock_insert, mock_get_latest, mock_match, mock_decode, mock_get_processor):
+    import datetime
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    mock_match.return_value = {"student_id": "S123", "similarity": 0.85, "user_id": 1}
+    
+    # Mock check-in 2 minutes ago with ISO format ending in +00:00 or Z
+    tz_aware_str = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=2)).isoformat()
+    mock_get_latest.return_value = {"timestamp": tz_aware_str}
+
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
+
+    assert result["match"] is True
+    assert "already checked in" in result["message"]
+    mock_insert.assert_not_called()
 

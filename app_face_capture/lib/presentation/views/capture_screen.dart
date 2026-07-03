@@ -98,6 +98,33 @@ class _CaptureScreenState extends State<CaptureScreen> {
     super.dispose();
   }
 
+  String _getPromptText(int count) {
+    switch (count) {
+      case 0:
+        return 'Look straight at the camera (Neutral)';
+      case 1:
+        return 'Smile naturally';
+      case 2:
+        return 'Turn your head slightly to the left';
+      case 3:
+        return 'Turn your head slightly to the right';
+      case 4:
+        return 'Tilt your head slightly up';
+      case 5:
+        return 'Tilt your head slightly down';
+      case 6:
+        return 'If wearing glasses or mask, please remove them';
+      case 7:
+        return 'Blink your eyes once';
+      case 8:
+        return 'Show a different expression (e.g. surprised)';
+      case 9:
+        return 'Final look straight at the camera';
+      default:
+        return 'Look straight at the camera';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -153,7 +180,49 @@ class _CaptureScreenState extends State<CaptureScreen> {
                           fit: StackFit.expand,
                           children: [
                             CameraPreviewWidget(controller: _cameraController!),
-                            const FaceGuideOverlay(),
+                            FaceGuideOverlay(
+                              guideText: _getPromptText(viewModel.capturedCount),
+                            ),
+                            Positioned(
+                              top: 16,
+                              left: 16,
+                              right: 16,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.7),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'INSTRUCTION',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade400,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _getPromptText(viewModel.capturedCount),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         )
                       : const Center(

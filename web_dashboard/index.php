@@ -395,16 +395,69 @@ async function loadQueue() {
     if (rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No queue items found.</p></div></td></tr>';
     } else {
-      tbody.innerHTML = rows.map(row => `
-        <tr>
-          <td><span class="cell-id">${escapeHtml(row.student_id) || '—'}</span></td>
-          <td style="font-size:11px;color:#94a3b8;word-break:break-all">${escapeHtml(row.image_path) || '—'}</td>
-          <td>${statusBadge(row.status)}</td>
-          <td>${escapeHtml(formatDateTime(row.created_at))}</td>
-          <td>${row.processed_at ? escapeHtml(formatDateTime(row.processed_at)) : '<span style="color:#64748b">—</span>'}</td>
-          <td>${row.error_message ? `<span class="cell-error">${escapeHtml(row.error_message)}</span>` : '<span style="color:#64748b">—</span>'}</td>
-        </tr>
-      `).join('');
+      // Group photos with the same student ID
+      const groups = {};
+      rows.forEach(row => {
+        const sid = row.student_id;
+        if (!groups[sid]) {
+          groups[sid] = {
+            student_id: sid,
+            items: [],
+            statuses: new Set(),
+            created_ats: [],
+            processed_ats: [],
+            errors: []
+          };
+        }
+        groups[sid].items.push(row.image_path);
+        if (row.status) groups[sid].statuses.add(row.status);
+        if (row.created_at) groups[sid].created_ats.push(new Date(row.created_at));
+        if (row.processed_at) groups[sid].processed_ats.push(new Date(row.processed_at));
+        if (row.error_message) groups[sid].errors.push(row.error_message);
+      });
+
+      tbody.innerHTML = Object.values(groups).map(g => {
+        const studentId = g.student_id;
+        const totalPhotos = g.items.length;
+
+        // Aggregate status: pending > failed > completed
+        let groupStatus = 'completed';
+        if (g.statuses.has('pending')) {
+          groupStatus = 'pending';
+        } else if (g.statuses.has('failed')) {
+          groupStatus = 'failed';
+        }
+
+        // Aggregate timestamps
+        const maxCreated = g.created_ats.length ? new Date(Math.max(...g.created_ats)).toISOString() : null;
+        const maxProcessed = g.processed_ats.length ? new Date(Math.max(...g.processed_ats)).toISOString() : null;
+
+        // Aggregate error messages
+        const uniqueErrors = Array.from(new Set(g.errors.filter(Boolean)));
+        const errorDisplay = uniqueErrors.length ? uniqueErrors.join('; ') : '';
+
+        // Dropdown HTML for photos
+        const dropdownHtml = `
+          <select class="filter-select" style="max-width:240px; margin:0;" onchange="if(this.value) window.open(this.value, '_blank'); this.value='';">
+            <option value="">View Photos (${totalPhotos})</option>
+            ${g.items.map((url, idx) => {
+              const filename = url.split('/').pop();
+              return `<option value="${escapeHtml(url)}">Photo ${idx + 1} (${escapeHtml(filename)})</option>`;
+            }).join('')}
+          </select>
+        `;
+
+        return `
+          <tr>
+            <td><span class="cell-id">${escapeHtml(studentId) || '—'}</span></td>
+            <td>${dropdownHtml}</td>
+            <td>${statusBadge(groupStatus)}</td>
+            <td>${escapeHtml(formatDateTime(maxCreated))}</td>
+            <td>${maxProcessed ? escapeHtml(formatDateTime(maxProcessed)) : '<span style="color:#64748b">—</span>'}</td>
+            <td>${errorDisplay ? `<span class="cell-error">${escapeHtml(errorDisplay)}</span>` : '<span style="color:#64748b">—</span>'}</td>
+          </tr>
+        `;
+      }).join('');
     }
   } catch (e) {
     setError('Queue error: ' + e.message);

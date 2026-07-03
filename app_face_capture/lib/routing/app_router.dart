@@ -8,6 +8,7 @@ import 'package:app_face_capture/presentation/views/review_screen.dart';
 import 'package:app_face_capture/presentation/views/upload_screen.dart';
 import 'package:app_face_capture/presentation/views/settings_screen.dart';
 import 'package:app_face_capture/presentation/views/admin_screen.dart';
+import 'package:app_face_capture/presentation/views/single_capture_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -70,6 +71,16 @@ final GoRouter appRouter = GoRouter(
       path: '/admin',
       name: 'admin',
       builder: (context, state) => const AdminScreen(),
+    ),
+    GoRoute(
+      path: '/single_capture',
+      name: 'single_capture',
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>;
+        return SingleCaptureScreen(
+          prompt: args['prompt'] as String,
+        );
+      },
     ),
   ],
 );

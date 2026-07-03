@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 
 class FaceGuideOverlay extends StatelessWidget {
-  const FaceGuideOverlay({super.key});
+  final String guideText;
+  final bool showText;
+
+  const FaceGuideOverlay({
+    super.key,
+    this.guideText = 'Position your face inside the oval',
+    this.showText = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       painter: _FaceGuidePainter(),
-      child: const Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: 16.0),
-          child: Text(
-            'Position your face inside the oval',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-            ),
-          ),
-        ),
-      ),
+      child: showText
+          ? Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  guideText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                  ),
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 }

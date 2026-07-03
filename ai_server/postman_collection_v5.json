@@ -8,17 +8,17 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8000",
+      "value": "http://34.124.240.7:8000",
       "type": "string"
     },
     {
       "key": "adminKey",
-      "value": "your-secret-admin-key",
+      "value": "my-secure-admin-token-12345",
       "type": "string"
     },
     {
       "key": "student_id",
-      "value": "6600001",
+      "value": "",
       "type": "string"
     }
   ],
@@ -77,7 +77,7 @@
                   "key": "files",
                   "type": "file",
                   "src": [],
-                  "description": "1 to 3 clear front-facing face images (select multiple)."
+                  "description": "10 clear front-facing face images (select multiple)."
                 }
               ]
             },

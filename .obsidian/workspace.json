@@ -13,15 +13,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Workflow.md",
+                "file": "ai_server/DEPLOYMENT_GUIDE.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Workflow"
+              "title": "DEPLOYMENT_GUIDE"
+            }
+          },
+          {
+            "id": "8d4f7b2713f22c20",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Idea.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Idea"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -78,7 +93,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "45d0ea8c93b0930a",
@@ -180,23 +195,37 @@
       "bases:Create new base": false
     }
   },
-  "active": "b389a8eb4a181b64",
+  "active": "8d4f7b2713f22c20",
   "lastOpenFiles": [
-    "null",
-    "app_face_capture/build/test_cache/build/e9f9f14b",
-    "app_face_capture/build/test_cache/build/dba279e6",
-    "app_face_capture/build/test_cache/build/cb2910da",
-    "app_face_capture/build/test_cache/build/5d7cabd5",
-    "app_face_capture/build/test_cache/build/71c86046",
-    "app_face_capture/build/test_cache/build/c79753a",
-    "app_face_capture/build/test_cache/build/36c89471",
-    "app_face_capture/build/unit_test_assets/shaders/ink_sparkle.frag.spirv",
-    "app_face_capture/build/test_cache/build/47974bd4",
-    "app_face_capture/build/test_cache/build/9cdf31f3",
+    "ai_server/tests/__pycache__/test_routers.cpython-311-pytest-9.1.1.pyc.14288",
+    "ai_server/tests/__pycache__/test_services.cpython-311-pytest-9.1.1.pyc.16480",
+    "ai_server/tests/__pycache__/test_database.cpython-311-pytest-9.1.1.pyc",
+    "ai_server/tests/test_database.py",
+    "docs/superpowers/plans/2026-07-02-ai-server-optimizations.md",
+    "docs/superpowers/specs/2026-07-02-ai-server-optimizations-design.md",
+    "web_dashboard/cacert.pem",
+    "docs/superpowers/specs/2026-07-01-app-restructuring-and-optimization-design.md",
+    "ai_server/tests/pic/b4e7a930-eea0-435b-912a-177f2ba9eed4.jpg",
+    "ai_server/tests/pic/d454e835-b561-4a71-a50c-4e60166cab52.jpg",
+    "ai_server/tests/pic/ddff2b91-ec93-4ab4-a08b-60807769548b.jpg",
+    "ai_server/tests/pic",
+    "ai_server/postman_collection_v5.json",
+    "app_face_capture/build/test_cache/build/dc9fb5d1",
+    "app_face_capture/build/test_cache/build/6448da8a",
+    "app_face_capture/build/test_cache/build/325537e8",
+    "web_dashboard/api/train.php",
+    "docs/superpowers/specs/2026-07-01-base-url-env-var-design.md",
+    "Idea.md",
+    "docs/superpowers/plans/2026-07-01-app-restructuring-and-optimization.md",
+    "ai_server/DEPLOYMENT_GUIDE.md",
+    "docs/superpowers/plans/2026-07-01-base-url-env-var.md",
+    "web_dashboard/README.md",
+    "docs/superpowers/specs/2026-06-30-php-dashboard-design.md",
+    "docs/superpowers/plans/2026-06-30-php-dashboard-plan.md",
+    "Workflow.md",
     "docs/superpowers/specs/2026-06-29-project-restructuring-design.md",
     "docs/superpowers/plans/2026-06-29-project-restructure-plan.md",
     "ai_server/README.md",
-    "Workflow.md",
     "app_face_capture/postman-mcp-server/node_modules/@faker-js/faker/locale/ReadMe.md",
     "app_face_capture/postman-mcp-server/node_modules/postman-sandbox/README.md",
     "app_face_capture/postman-mcp-server/node_modules/postman-sandbox/LICENSE.md",
@@ -207,26 +236,12 @@
     "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/typescript/connectExample.md",
     "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/typescript/bindExample.md",
     "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/typescript/associateExample.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/javascript/connectExample.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/javascript/bindExample.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/javascript/associateExample.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/examples/index.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/migratingFromV1.md",
-    "app_face_capture/postman-mcp-server/node_modules/socks/docs/index.md",
-    "app_face_capture/postman-mcp-server/node_modules/postman-request/node_modules/qs/README.md",
-    "app_face_capture/postman-mcp-server/node_modules/postman-request/node_modules/qs/CHANGELOG.md",
-    "app_face_capture/postman-mcp-server/node_modules/postman-runtime/node_modules/qs/CHANGELOG.md",
-    "app_face_capture/postman-mcp-server/node_modules/@postman/tough-cookie/README.md",
-    "app_face_capture/postman-mcp-server/node_modules/math-intrinsics/README.md",
     "app_face_capture/postman-mcp-server/node_modules/psl/browserstack-logo.svg",
     "app_face_capture/postman-mcp-server/node_modules/charset/coverage/lcov-report/sort-arrow-sprite.png",
     "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-Regular-webfont.svg",
     "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-LightItalic-webfont.svg",
     "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-Light-webfont.svg",
     "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-Italic-webfont.svg",
-    "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-BoldItalic-webfont.svg",
-    "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-Bold-webfont.svg",
-    "app_face_capture/postman-mcp-server/node_modules/flatted/flatted.jpg",
-    "app_face_capture/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png"
+    "app_face_capture/postman-mcp-server/node_modules/js-md4/doc/fonts/OpenSans-BoldItalic-webfont.svg"
   ]
 }
