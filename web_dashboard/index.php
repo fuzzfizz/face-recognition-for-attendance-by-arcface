@@ -111,10 +111,10 @@ if (!file_exists(__DIR__ . '/config.php')) {
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Student ID</th><th>Name</th><th>Registered At</th><th>Status</th></tr>
+        <tr><th>Student ID</th><th>Name</th><th>Registered At</th><th>Status</th><th>Actions</th></tr>
       </thead>
       <tbody id="students-body">
-        <tr><td colspan="4"><div class="empty-state"><p>Click Students tab to load.</p></div></td></tr>
+        <tr><td colspan="5"><div class="empty-state"><p>Click Students tab to load.</p></div></td></tr>
       </tbody>
     </table>
   </div>
@@ -362,7 +362,7 @@ async function loadStudents() {
     const rows = d.data ?? [];
     const tbody = document.getElementById('students-body');
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>No students registered yet.</p></div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No students registered yet.</p></div></td></tr>';
     } else {
       tbody.innerHTML = rows.map(row => `
         <tr>
@@ -370,6 +370,9 @@ async function loadStudents() {
           <td>${row.name ? escapeHtml(row.name) : '<span style="color:#64748b">—</span>'}</td>
           <td>${escapeHtml(formatDateTime(row.created_at))}</td>
           <td>${statusBadge(row.queue_status)}</td>
+          <td>
+            <button class="btn-delete" style="background:#ef4444;color:white;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;" onclick="deleteStudent('${escapeHtml(row.student_id)}')">Delete</button>
+          </td>
         </tr>
       `).join('');
     }
@@ -487,6 +490,29 @@ async function triggerForceTraining() {
   } finally {
     btn.textContent = oldText;
     btn.disabled = false;
+  }
+}
+
+async function deleteStudent(studentId) {
+  if (!confirm(`Are you sure you want to permanently delete student ID: ${studentId}?\nThis will delete their photos and face recognition data but keep their check-in log history.`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch('api/delete_student.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_id: studentId })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || d.detail || 'Delete failed');
+    
+    alert(`Student ${studentId} has been successfully deleted.`);
+    loadStudents();
+    loadStats();
+    loadQueue();
+  } catch (e) {
+    alert('Error: ' + e.message);
   }
 }
 
