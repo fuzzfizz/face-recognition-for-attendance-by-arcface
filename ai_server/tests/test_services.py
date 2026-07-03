@@ -331,3 +331,36 @@ def test_verify_face_timezone_aware_string(mock_insert, mock_get_latest, mock_ma
     assert "already checked in" in result["message"]
     mock_insert.assert_not_called()
 
+
+@patch("app.services.registration_service.delete_student_from_db")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.invalidate_cache")
+def test_delete_student_service_success(mock_invalidate, mock_save, mock_get_all, mock_db_delete):
+    mock_db_delete.return_value = True
+    mock_get_all.return_value = [
+        {"student_id": "S123", "embeddings": []},
+        {"student_id": "S456", "embeddings": []}
+    ]
+    
+    from app.services.registration_service import delete_student
+    result = delete_student("S123")
+    
+    assert result["student_id"] == "S123"
+    assert "deleted successfully" in result["message"]
+    mock_save.assert_called_once_with([{"student_id": "S456", "embeddings": []}])
+    mock_invalidate.assert_called_once()
+
+
+@patch("app.services.registration_service.delete_student_from_db")
+def test_delete_student_service_failure(mock_db_delete):
+    mock_db_delete.return_value = False
+    
+    from app.services.registration_service import delete_student
+    with pytest.raises(HTTPException) as exc_info:
+        delete_student("S123")
+    
+    assert exc_info.value.status_code == 500
+    assert "Failed to delete student" in exc_info.value.detail
+
+

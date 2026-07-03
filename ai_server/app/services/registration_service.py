@@ -7,7 +7,30 @@ from app.database import (
     upload_image,
     insert_queue_item,
     get_all_embeddings,
+    save_all_embeddings,
+    delete_student_from_db,
 )
+from app.matcher import invalidate_cache
+
+def delete_student(student_id: str) -> dict:
+    """Delete a student's registration records, embeddings, and clear cache."""
+    success = delete_student_from_db(student_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete student database/storage records"
+        )
+
+    existing = get_all_embeddings()
+    updated = [e for e in existing if e.get("student_id") != student_id]
+    save_all_embeddings(updated)
+
+    invalidate_cache()
+
+    return {
+        "message": "Student registration data deleted successfully",
+        "student_id": student_id
+    }
 
 async def register_images(student_id: str, name: str, files: List[UploadFile]) -> dict:
     """

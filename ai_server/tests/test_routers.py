@@ -55,6 +55,34 @@ def test_status_route(mock_status):
     mock_status.assert_called_once_with("S001")
 
 
+# ── DELETE /register/student/{student_id} ────────────────────────────
+
+@patch("app.services.registration_service.delete_student")
+@patch("app.dependencies.ADMIN_KEY", "secret")
+def test_delete_student_unauthorized(mock_delete):
+    response = client.delete("/register/student/S001")
+    assert response.status_code == 401  # missing header
+
+    response = client.delete("/register/student/S001", headers={"X-Admin-Key": "wrong"})
+    assert response.status_code == 401  # unauthorized
+    mock_delete.assert_not_called()
+
+
+@patch("app.services.registration_service.delete_student")
+@patch("app.dependencies.ADMIN_KEY", "secret")
+def test_delete_student_authorized(mock_delete):
+    mock_delete.return_value = {
+        "message": "Student registration data deleted successfully",
+        "student_id": "S001"
+    }
+
+    response = client.delete("/register/student/S001", headers={"X-Admin-Key": "secret"})
+    assert response.status_code == 200
+    assert response.json()["student_id"] == "S001"
+    mock_delete.assert_called_once_with("S001")
+
+
+
 # ── /train-now ───────────────────────────────────────────────────────
 
 @patch("app.services.training_service.process_pending_queue")
