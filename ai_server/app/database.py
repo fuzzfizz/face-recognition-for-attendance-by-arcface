@@ -18,6 +18,7 @@ from app.supabase_client import (
     get_user as sb_get_user,
     insert_log as sb_insert_log,
     get_logs as sb_get_logs,
+    get_latest_check_in_log as sb_get_latest_check_in_log,
     insert_queue_item as sb_insert_queue,
     get_pending_queue_items as sb_get_pending_queue_items,
     update_queue_item as sb_update_queue,
@@ -196,6 +197,30 @@ def get_logs(limit=50):
             session.close()
 
 
+def get_latest_check_in_log(student_id: str) -> Optional[dict]:
+    if supabase_available():
+        return sb_get_latest_check_in_log(student_id)
+    else:
+        _init_sqlite()
+        session = next(_get_sqlite_session())
+        try:
+            log = session.query(_LogModel) \
+                .filter(_LogModel.student_id == student_id) \
+                .order_by(_LogModel.timestamp.desc()) \
+                .first()
+            if log:
+                return {
+                    "id": log.id,
+                    "student_id": log.student_id,
+                    "similarity_score": log.similarity_score,
+                    "device_id": log.device_id,
+                    "timestamp": log.timestamp.isoformat() if hasattr(log.timestamp, "isoformat") else log.timestamp
+                }
+            return None
+        finally:
+            session.close()
+
+
 # ──────────────────────────────────────────────
 # Registration Queue
 # ──────────────────────────────────────────────
@@ -217,14 +242,17 @@ def insert_queue_item(student_id, image_path):
             session.close()
 
 
-def get_pending_queue_items():
+def get_pending_queue_items(limit: Optional[int] = None):
     if supabase_available():
-        return sb_get_pending_queue_items()
+        return sb_get_pending_queue_items(limit)
     else:
         _init_sqlite()
         session = next(_get_sqlite_session())
         try:
-            items = session.query(_QueueModel).filter(_QueueModel.status == "pending").all()
+            query = session.query(_QueueModel).filter(_QueueModel.status == "pending")
+            if limit is not None:
+                query = query.limit(limit)
+            items = query.all()
             return [
                 {"id": item.id, "student_id": item.student_id, "image_path": item.image_path}
                 for item in items

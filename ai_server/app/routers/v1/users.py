@@ -77,9 +77,9 @@ async def upload_user_image(
     }
 
 @router.post("/train")
-def train_model(admin=Depends(require_admin)):
+def train_model(limit: int = 50, admin=Depends(require_admin)):
     """Legacy train endpoint. Calls new training service."""
     try:
-        return training_service.process_pending_queue()
+        return training_service.process_pending_queue(limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")

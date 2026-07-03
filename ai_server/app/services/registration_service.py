@@ -14,6 +14,7 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
+
     user = upsert_user(student_id, name)
     if not user:
         raise HTTPException(
@@ -26,18 +27,33 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
 
     # Pre-read and check faces first:
     decoded_images = []
+    results = []
+    has_failure = False
     for file in files:
         file_bytes = await file.read()
         if not file_bytes:
             continue
         cv_img = processor.decode_image(file_bytes)
         if cv_img is None:
-            raise HTTPException(status_code=400, detail="Cannot parse one of the image files.")
+            results.append({"filename": file.filename, "passed": False, "error": "Cannot parse image file"})
+            has_failure = True
+            continue
         faces = processor.app.get(cv_img)
         if not faces:
-            raise HTTPException(status_code=400, detail=f"No face detected in photo ({file.filename}). Please align your face in the camera.")
-        # Store for saving
-        decoded_images.append((file.filename, file_bytes))
+            results.append({"filename": file.filename, "passed": False, "error": "No face detected"})
+            has_failure = True
+        else:
+            results.append({"filename": file.filename, "passed": True, "error": None})
+            decoded_images.append((file.filename, file_bytes))
+
+    if has_failure:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Some photos failed face verification.",
+                "results": results
+            }
+        )
 
     queue_count = 0
     for filename, file_bytes in decoded_images:
