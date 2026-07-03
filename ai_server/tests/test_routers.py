@@ -198,3 +198,27 @@ def test_v1_user_image_upload(mock_insert_queue, mock_upload):
     assert response.json()["status"] == "success"
     mock_upload.assert_called_once()
     mock_insert_queue.assert_called_once_with("123", "/path/to/img.jpg")
+
+
+@patch("app.dependencies.ADMIN_KEY", "secret")
+def test_student_id_validation_invalid():
+    # Test invalid student_id pattern (e.g. with spaces, slashes, special characters)
+    # 1. /register
+    response = client.post(
+        "/register",
+        data={"student_id": "invalid/student_id"},
+        files={"files": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert "Invalid student_id format" in response.json()["detail"]
+
+    # 2. /register/status/{student_id}
+    response = client.get("/register/status/invalid id")
+    assert response.status_code == 400
+    assert "Invalid student_id format" in response.json()["detail"]
+
+    # 3. DELETE /register/student/{student_id}
+    response = client.delete("/register/student/invalid&id", headers={"X-Admin-Key": "secret"})
+    assert response.status_code == 400
+    assert "Invalid student_id format" in response.json()["detail"]
+

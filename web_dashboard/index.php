@@ -371,7 +371,7 @@ async function loadStudents() {
           <td>${escapeHtml(formatDateTime(row.created_at))}</td>
           <td>${statusBadge(row.queue_status)}</td>
           <td>
-            <button class="btn-delete" style="background:#ef4444;color:white;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;" onclick="deleteStudent('${escapeHtml(row.student_id)}')">Delete</button>
+            <button class="btn-delete" style="background:#ef4444;color:white;padding:4px 8px;border:none;border-radius:4px;cursor:pointer;font-size:11px;" data-student-id="${escapeHtml(row.student_id)}" onclick="deleteStudent(this.dataset.studentId)">Delete</button>
           </td>
         </tr>
       `).join('');

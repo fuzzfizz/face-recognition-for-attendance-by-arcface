@@ -23,9 +23,9 @@ def delete_student(student_id: str) -> dict:
 
     existing = get_all_embeddings()
     updated = [e for e in existing if e.get("student_id") != student_id]
-    save_all_embeddings(updated)
-
-    invalidate_cache()
+    if len(updated) < len(existing):
+        save_all_embeddings(updated)
+        invalidate_cache()
 
     return {
         "message": "Student registration data deleted successfully",

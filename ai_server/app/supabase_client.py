@@ -245,14 +245,15 @@ def delete_student_from_supabase(student_id: str) -> bool:
         q_res = sb.table("registration_queue").select("image_path").eq("student_id", student_id).execute()
         paths.extend([row["image_path"] for row in q_res.data if row.get("image_path")])
 
-        # Extract filenames to remove from Supabase Storage
-        filenames = list(set([p.split("/")[-1] for p in paths if "/" in p]))
+        # 2. Delete user and queue history first
+        sb.table("users").delete().eq("student_id", student_id).execute()
+        sb.table("registration_queue").delete().eq("student_id", student_id).execute()
+
+        # 3. Extract filenames and remove from Supabase Storage only after successful DB deletion
+        filenames = list(set([p.split("/")[-1] for p in paths if p]))
         if filenames:
             sb.storage.from_(SUPABASE_STORAGE_BUCKET).remove(filenames)
 
-        # 2. Delete user and queue history
-        sb.table("users").delete().eq("student_id", student_id).execute()
-        sb.table("registration_queue").delete().eq("student_id", student_id).execute()
         return True
     except Exception as e:
         print(f"[Supabase] delete_student_from_supabase error: {e}")
