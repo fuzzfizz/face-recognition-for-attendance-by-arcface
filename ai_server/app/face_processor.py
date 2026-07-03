@@ -28,27 +28,31 @@ class FaceProcessor:
         """
         return decode_image_from_source(image_path)
 
-    def extract_face_embedding(self, cv_img: np.ndarray):
+    def extract_face_embedding(self, cv_img: np.ndarray, face=None):
         """
         Detects faces in an image, aligns them, and extracts the 512-dimension embedding.
+        If `face` is provided, skips calling `self.app.get(cv_img)` and extracts directly from it.
         Returns the embedding of the primary face detected, or None if no face is found.
         """
-        if cv_img is None:
-            return None
+        if face is not None:
+            primary_face = face
+        else:
+            if cv_img is None:
+                return None
+                
+            # Get face predictions
+            faces = self.app.get(cv_img)
             
-        # Get face predictions
-        faces = self.app.get(cv_img)
-        
-        if not faces:
-            return None
-            
-        # If multiple faces are detected, we take the largest one (usually the main subject)
-        # faces can be sorted by bounding box area: (x2-x1) * (y2-y1)
-        faces = sorted(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]), reverse=True)
+            if not faces:
+                return None
+                
+            # If multiple faces are detected, we take the largest one (usually the main subject)
+            # faces can be sorted by bounding box area: (x2-x1) * (y2-y1)
+            faces = sorted(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]), reverse=True)
+            primary_face = faces[0]
         
         # InsightFace's `faces[0].normed_embedding` is the L2-normalized 512-d ArcFace feature vector,
         # which is perfect for direct Cosine Similarity calculation.
-        primary_face = faces[0]
         
         # Return both the embedding and some metadata (like bbox and kps)
         return {
@@ -138,7 +142,7 @@ class FaceProcessor:
             return {"passed": False, "failed_step": 6, "error_message": f"Obstructions detected (confidence: {primary.det_score:.2f} < 0.6)", "results": results}
         results["obstruction_passed"] = True
 
-        return {"passed": True, "failed_step": None, "error_message": None, "results": results}
+        return {"passed": True, "failed_step": None, "error_message": None, "results": results, "face": primary}
 
 
 # Singleton instance

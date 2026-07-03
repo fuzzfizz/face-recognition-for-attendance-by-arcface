@@ -618,10 +618,10 @@ async function loadQueue() {
           </select>
         `;
 
-        const isExpanded = expandedQueueRows.has(studentId);
+        const isExpanded = expandedQueueRows.has(getSafeDOMId(studentId));
 
         return `
-          <tr class="queue-row-header" onclick="toggleQueueDetails('${escapeHtml(studentId)}')" style="cursor:pointer">
+          <tr class="queue-row-header" onclick="toggleQueueDetails('${getSafeDOMId(studentId)}')" style="cursor:pointer">
             <td>
               <span class="details-arrow ${isExpanded ? 'expanded' : ''}" id="arrow-${getSafeDOMId(studentId)}">▶</span>
               <span class="cell-id">${escapeHtml(studentId) || '—'}</span>
@@ -639,10 +639,10 @@ async function loadQueue() {
                   
                   <!-- Tabs Header -->
                   <div class="details-tabs">
-                    <button class="details-tab active" onclick="switchQueueTab(event, '${escapeHtml(studentId)}', 'checklist')">
+                    <button class="details-tab active" onclick="switchQueueTab(event, '${getSafeDOMId(studentId)}', 'checklist')">
                       ⚠️ Failure Checklist
                     </button>
-                    <button class="details-tab" onclick="switchQueueTab(event, '${escapeHtml(studentId)}', 'raw')">
+                    <button class="details-tab" onclick="switchQueueTab(event, '${getSafeDOMId(studentId)}', 'raw')">
                       📊 Raw Data
                     </button>
                   </div>
@@ -721,26 +721,25 @@ async function deleteStudent(studentId) {
 // Track expanded queue rows
 let expandedQueueRows = new Set();
 
-function toggleQueueDetails(studentId) {
-  const safeId = getSafeDOMId(studentId);
+function toggleQueueDetails(safeId) {
   const row = document.getElementById('details-row-' + safeId);
   const container = document.getElementById('details-container-' + safeId);
   const arrow = document.getElementById('arrow-' + safeId);
   if (!row || !container || !arrow) return;
 
-  if (expandedQueueRows.has(studentId)) {
+  if (expandedQueueRows.has(safeId)) {
     // Collapse
-    expandedQueueRows.delete(studentId);
+    expandedQueueRows.delete(safeId);
     container.classList.remove('expanded');
     arrow.classList.remove('expanded');
     setTimeout(() => {
-      if (!expandedQueueRows.has(studentId)) {
+      if (!expandedQueueRows.has(safeId)) {
         row.style.display = 'none';
       }
     }, 300);
   } else {
     // Expand
-    expandedQueueRows.add(studentId);
+    expandedQueueRows.add(safeId);
     row.style.display = 'table-row';
     row.offsetHeight; // trigger reflow
     container.classList.add('expanded');
@@ -748,10 +747,9 @@ function toggleQueueDetails(studentId) {
   }
 }
 
-function switchQueueTab(event, studentId, tabName) {
+function switchQueueTab(event, safeId, tabName) {
   event.stopPropagation(); // Prevent toggling the row
   
-  const safeId = getSafeDOMId(studentId);
   const container = document.getElementById('details-container-' + safeId);
   if (!container) return;
   
@@ -782,7 +780,8 @@ function parseValidationChecks(item) {
     { key: 'blur_passed', label: 'Blur Check' },
     { key: 'distance_passed', label: 'Distance (Size) Check' },
     { key: 'orientation_passed', label: 'Orientation (Pose) Check' },
-    { key: 'obstruction_passed', label: 'Obstruction Check' }
+    { key: 'obstruction_passed', label: 'Obstruction Check' },
+    { key: 'database_match', label: 'Database Match Check' }
   ];
 
   let results = {};
@@ -821,6 +820,10 @@ function parseValidationChecks(item) {
       }
     });
   }
+
+  // Database Match is N/A for Registration Queue
+  results['database_match'] = { status: 'none' };
+
   return results;
 }
 
@@ -847,6 +850,10 @@ function renderChecklistsHtml(items) {
         icon = '○';
         cls = 'check-skipped';
         suffix = ' (skipped)';
+      } else if (check.status === 'none') {
+        icon = '○';
+        cls = 'check-skipped';
+        suffix = '';
       } else { // pending
         icon = '—';
         cls = 'check-pending';
@@ -859,7 +866,8 @@ function renderChecklistsHtml(items) {
         blur_passed: 'Blur Check',
         distance_passed: 'Distance (Size) Check',
         orientation_passed: 'Orientation (Pose) Check',
-        obstruction_passed: 'Obstruction Check'
+        obstruction_passed: 'Obstruction Check',
+        database_match: 'Database Match (N/A for Registration)'
       };
       const label = labels[key] || key;
       

@@ -50,7 +50,7 @@ def process_pending_queue(limit: int = 50) -> dict:
                     all_item_statuses.append((item["id"], "failed", val_res["error_message"]))
                     continue
 
-                result = processor.extract_face_embedding(cv_img)
+                result = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
                 if result and "embedding" in result:
                     new_embeddings.append(result["embedding"])
                     all_item_statuses.append((item["id"], "completed", None))

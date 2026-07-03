@@ -60,10 +60,10 @@ def verify_face(
         }
 
     # Extract embedding
-    face_data = processor.extract_face_embedding(cv_img)
+    face_data = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
     if not face_data:
         # No face detected — log with no match
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id)
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="No face detected during embedding extraction")
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
@@ -71,7 +71,7 @@ def verify_face(
             "student_id": None,
             "similarity_score": 0.0,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": None,
+            "message": "No face detected during embedding extraction",
             "validation_checklist": checklist
         }
 
