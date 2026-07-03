@@ -59,3 +59,17 @@ def decode_base64_image(b64: str) -> np.ndarray | None:
     except Exception:
         return None
     return decode_image_bytes(img_data)
+
+
+def calculate_blur_variance(cv_img: np.ndarray) -> float:
+    """
+    Calculate the Laplacian variance of the image to measure blurriness.
+    """
+    if cv_img is None or cv_img.size == 0:
+        return 0.0
+    if len(cv_img.shape) == 2:
+        gray = cv_img
+    else:
+        gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+    return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
