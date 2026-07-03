@@ -46,7 +46,7 @@ def _init_sqlite():
     if _sqlite_engine is not None:
         return  # Already initialized
 
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine, text
     from sqlalchemy.orm import sessionmaker
     from pathlib import Path
 
@@ -70,6 +70,21 @@ def _init_sqlite():
     _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_sqlite_engine)
 
     Base.metadata.create_all(bind=_sqlite_engine)
+
+    # Dynamic migrations for SQLite fallback
+    with _sqlite_engine.begin() as conn:
+        # Check if error_message column exists in check_in_logs
+        res = conn.execute(text("PRAGMA table_info(check_in_logs);")).fetchall()
+        cols = [col[1] for col in res]
+        if "error_message" not in cols:
+            conn.execute(text("ALTER TABLE check_in_logs ADD COLUMN error_message VARCHAR;"))
+        
+        # Check if error_message column exists in registration_queue
+        q_res = conn.execute(text("PRAGMA table_info(registration_queue);")).fetchall()
+        q_cols = [col[1] for col in q_res]
+        if "error_message" not in q_cols:
+            conn.execute(text("ALTER TABLE registration_queue ADD COLUMN error_message VARCHAR;"))
+
 
 
 def _get_sqlite_session():
@@ -155,9 +170,15 @@ def get_user_by_student_id(student_id: str):
 # ──────────────────────────────────────────────
 # Check-in logs
 # ──────────────────────────────────────────────
-def insert_log(student_id, similarity_score, device_id, user_id=None):
+def insert_log(
+    student_id: Optional[str],
+    similarity_score: float,
+    device_id: str,
+    user_id: Optional[int] = None,
+    error_message: Optional[str] = None
+):
     if supabase_available():
-        return sb_insert_log(student_id, similarity_score, device_id, user_id)
+        return sb_insert_log(student_id, similarity_score, device_id, user_id, error_message=error_message)
     else:
         _init_sqlite()
         session = next(_get_sqlite_session())
@@ -173,6 +194,7 @@ def insert_log(student_id, similarity_score, device_id, user_id=None):
                 student_id=student_id,
                 similarity_score=similarity_score,
                 device_id=device_id,
+                error_message=error_message,
             )
             session.add(log)
             session.commit()
@@ -182,6 +204,7 @@ def insert_log(student_id, similarity_score, device_id, user_id=None):
             return False
         finally:
             session.close()
+
 
 
 def get_logs(limit=50):
@@ -199,6 +222,7 @@ def get_logs(limit=50):
                     "similarity_score": log.similarity_score,
                     "device_id": log.device_id,
                     "timestamp": log.timestamp,
+                    "error_message": log.error_message,
                 }
                 for log in logs
             ]
@@ -223,7 +247,8 @@ def get_latest_check_in_log(student_id: str) -> Optional[dict]:
                     "student_id": log.student_id,
                     "similarity_score": log.similarity_score,
                     "device_id": log.device_id,
-                    "timestamp": log.timestamp.isoformat() if hasattr(log.timestamp, "isoformat") else log.timestamp
+                    "timestamp": log.timestamp.isoformat() if hasattr(log.timestamp, "isoformat") else log.timestamp,
+                    "error_message": log.error_message
                 }
             return None
         finally:

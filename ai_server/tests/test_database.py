@@ -219,3 +219,89 @@ def test_delete_student_sqlite_transaction_safety(in_memory_db, tmp_path):
     session.close()
 
 
+def test_insert_log_with_error_message(in_memory_db):
+    """Test that we can insert a log with an error message."""
+    from app.database import insert_log, get_logs
+    success = insert_log(
+        student_id=None,
+        similarity_score=0.0,
+        device_id="TEST-DEV",
+        error_message="Blur Check Failed"
+    )
+    assert success is True
+    
+    logs = get_logs(limit=1)
+    assert len(logs) == 1
+    assert logs[0].get("error_message") == "Blur Check Failed"
+
+
+def test_sqlite_dynamic_migration(tmp_path):
+    """Test that SQLite initialization automatically performs ALTER TABLE when error_message is missing."""
+    import sqlite3
+    from unittest.mock import patch
+    from sqlalchemy import text
+    from app import database
+    
+    # 1. Create a dummy sqlite database file with old schemas (missing error_message)
+    db_file = tmp_path / "old_face_recognition.db"
+    conn_raw = sqlite3.connect(db_file)
+    cursor = conn_raw.cursor()
+    
+    # Create tables without error_message
+    cursor.execute("""
+        CREATE TABLE check_in_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            student_id VARCHAR(20),
+            similarity_score FLOAT,
+            device_id VARCHAR(50),
+            timestamp DATETIME
+        );
+    """)
+    cursor.execute("""
+        CREATE TABLE registration_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id VARCHAR(20),
+            image_path VARCHAR(255),
+            status VARCHAR(20),
+            created_at DATETIME,
+            processed_at DATETIME
+        );
+    """)
+    conn_raw.commit()
+    conn_raw.close()
+    
+    # 2. Run _init_sqlite() pointing to this temporary database file
+    orig_engine = database._sqlite_engine
+    orig_session_local = database._SessionLocal
+    database._sqlite_engine = None
+    database._SessionLocal = None
+    
+    db_url = f"sqlite:///{db_file}"
+    
+    try:
+        with patch("app.database.supabase_available", return_value=False), \
+             patch("app.database.DATABASE_URL", db_url):
+            
+            # This should trigger _init_sqlite and run the migration code
+            database._init_sqlite()
+            
+            # Connect using the new engine to verify columns
+            with database._sqlite_engine.connect() as conn:
+                res = conn.execute(text("PRAGMA table_info(check_in_logs);")).fetchall()
+                cols = [col[1] for col in res]
+                assert "error_message" in cols
+                
+                q_res = conn.execute(text("PRAGMA table_info(registration_queue);")).fetchall()
+                q_cols = [col[1] for col in q_res]
+                assert "error_message" in q_cols
+    finally:
+        # Restore settings
+        if database._sqlite_engine:
+            database._sqlite_engine.dispose()
+        database._sqlite_engine = orig_engine
+        database._SessionLocal = orig_session_local
+
+
+
+

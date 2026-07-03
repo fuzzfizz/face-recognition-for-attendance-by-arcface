@@ -72,7 +72,8 @@ def insert_log(
     student_id: Optional[str],
     similarity_score: float,
     device_id: Optional[str],
-    supabase_user_id: Optional[Any] = None
+    supabase_user_id: Optional[Any] = None,
+    error_message: Optional[str] = None
 ) -> bool:
     """Insert a check-in log into Supabase."""
     if not is_available():
@@ -91,6 +92,7 @@ def insert_log(
             "student_id": student_id,
             "similarity_score": similarity_score,
             "device_id": device_id,
+            "error_message": error_message,
             "timestamp": datetime.utcnow().isoformat()
         }).execute()
         return True
