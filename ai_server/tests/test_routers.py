@@ -135,7 +135,16 @@ def test_verify_route(mock_verify):
         "match": True,
         "student_id": "S001",
         "similarity_score": 0.85,
-        "timestamp": "2026-06-29T18:00:00"
+        "timestamp": "2026-06-29T18:00:00",
+        "validation_checklist": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": True,
+            "distance_passed": True,
+            "orientation_passed": True,
+            "obstruction_passed": True,
+            "database_match": True
+        }
     }
     
     response = client.post(
@@ -145,7 +154,9 @@ def test_verify_route(mock_verify):
     )
     
     assert response.status_code == 200
-    assert response.json()["match"] is True
+    res_json = response.json()
+    assert res_json["match"] is True
+    assert res_json["validation_checklist"]["database_match"] is True
     mock_verify.assert_called_once()
 
 
@@ -221,4 +232,103 @@ def test_student_id_validation_invalid():
     response = client.delete("/register/student/invalid&id", headers={"X-Admin-Key": "secret"})
     assert response.status_code == 400
     assert "Invalid student_id format" in response.json()["detail"]
+
+
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.insert_log")
+def test_verify_route_validation_failure(mock_insert_log, mock_get_processor, mock_decode):
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "failed_step": 3,
+        "error_message": "Image is blurry / motion detected (variance: 50.0 < 100)",
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": False,
+            "distance_passed": False,
+            "orientation_passed": False,
+            "obstruction_passed": False
+        }
+    }
+    mock_get_processor.return_value = mock_processor
+
+    response = client.post(
+        "/verify",
+        data={"device_id": "ESP-TEST-01"},
+        files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+
+    assert response.status_code == 200
+    res_json = response.json()
+    assert res_json["match"] is False
+    assert res_json["student_id"] is None
+    assert res_json["similarity_score"] == 0.0
+    assert "Image is blurry" in res_json["message"]
+    assert res_json["validation_checklist"]["blur_passed"] is False
+    assert res_json["validation_checklist"]["database_match"] is False
+    
+    mock_insert_log.assert_called_once_with(
+        student_id=None,
+        similarity_score=0.0,
+        device_id="ESP-TEST-01",
+        error_message="Image is blurry / motion detected (variance: 50.0 < 100)"
+    )
+
+
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+def test_register_route_validation_failure(mock_upsert, mock_get_processor):
+    mock_upsert.return_value = {"id": 1, "student_id": "S001"}
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "failed_step": 3,
+        "error_message": "Image is blurry",
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": False,
+            "distance_passed": False,
+            "orientation_passed": False,
+            "obstruction_passed": False
+        }
+    }
+    mock_get_processor.return_value = mock_processor
+
+    response = client.post(
+        "/register",
+        data={"student_id": "S001"},
+        files={"files": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+
+    assert response.status_code == 400
+    res_json = response.json()
+    assert "Some photos failed face verification" in res_json["detail"]["message"]
+    assert res_json["detail"]["results"][0]["error"] == "Image is blurry"
+
+
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+def test_register_route_empty_file(mock_upsert, mock_get_processor):
+    mock_upsert.return_value = {"id": 1, "student_id": "S001"}
+    
+    mock_processor = MagicMock()
+    mock_get_processor.return_value = mock_processor
+
+    response = client.post(
+        "/register",
+        data={"student_id": "S001"},
+        files={"files": ("file.jpg", b"", "image/jpeg")}
+    )
+
+    assert response.status_code == 400
+    res_json = response.json()
+    assert "Some photos failed face verification" in res_json["detail"]["message"]
+    assert res_json["detail"]["results"][0]["error"] == "Empty upload file"
+    assert res_json["detail"]["results"][0]["validation_checklist"]["database_match"] is None
 

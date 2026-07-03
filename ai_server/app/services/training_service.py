@@ -45,6 +45,11 @@ def process_pending_queue(limit: int = 50) -> dict:
                     all_item_statuses.append((item["id"], "failed", "Could not read image file"))
                     continue
 
+                val_res = processor.validate_image_quality(cv_img)
+                if not val_res["passed"]:
+                    all_item_statuses.append((item["id"], "failed", val_res["error_message"]))
+                    continue
+
                 result = processor.extract_face_embedding(cv_img)
                 if result and "embedding" in result:
                     new_embeddings.append(result["embedding"])

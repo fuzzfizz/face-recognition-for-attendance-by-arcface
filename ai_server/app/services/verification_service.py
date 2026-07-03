@@ -44,17 +44,35 @@ def verify_face(
             detail="Invalid image content."
         )
 
-    # Extract embedding
-    face_data = processor.extract_face_embedding(cv_img)
-    if not face_data:
-        # No face detected — log with no match
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id)
+    # Run image quality validation first
+    val_res = processor.validate_image_quality(cv_img)
+    if not val_res["passed"]:
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message=val_res["error_message"])
+        checklist = val_res["results"].copy()
+        checklist["database_match"] = False
         return {
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": None
+            "message": val_res["error_message"],
+            "validation_checklist": checklist
+        }
+
+    # Extract embedding
+    face_data = processor.extract_face_embedding(cv_img)
+    if not face_data:
+        # No face detected — log with no match
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id)
+        checklist = val_res["results"].copy()
+        checklist["database_match"] = False
+        return {
+            "match": False,
+            "student_id": None,
+            "similarity_score": 0.0,
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "message": None,
+            "validation_checklist": checklist
         }
 
     # Match against local .pkl embeddings
@@ -85,12 +103,15 @@ def verify_face(
 
             elapsed = (datetime.datetime.utcnow() - latest_dt).total_seconds()
             if elapsed < 300:
+                checklist = val_res["results"].copy()
+                checklist["database_match"] = True
                 return {
                     "match": True,
                     "student_id": student_id,
                     "similarity_score": match["similarity"],
                     "timestamp": datetime.datetime.utcnow().isoformat(),
-                    "message": "Student has already checked in within the last 5 minutes."
+                    "message": "Student has already checked in within the last 5 minutes.",
+                    "validation_checklist": checklist
                 }
 
         insert_log(
@@ -100,19 +121,25 @@ def verify_face(
             user_id=user_id,
         )
 
+        checklist = val_res["results"].copy()
+        checklist["database_match"] = True
         return {
             "match": True,
             "student_id": student_id,
             "similarity_score": match["similarity"],
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": None
+            "message": None,
+            "validation_checklist": checklist
         }
     else:
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id)
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="No matching face found in database")
+        checklist = val_res["results"].copy()
+        checklist["database_match"] = False
         return {
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": None
+            "message": None,
+            "validation_checklist": checklist
         }

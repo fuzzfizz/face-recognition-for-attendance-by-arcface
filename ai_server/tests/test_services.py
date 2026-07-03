@@ -29,7 +29,19 @@ async def test_register_images_success(
 
     mock_processor = MagicMock()
     mock_processor.decode_image.return_value = MagicMock()
-    mock_processor.app.get.return_value = [MagicMock()]
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "failed_step": None,
+        "error_message": None,
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": True,
+            "distance_passed": True,
+            "orientation_passed": True,
+            "obstruction_passed": True
+        }
+    }
     mock_get_processor.return_value = mock_processor
 
     # Create mock UploadFile
@@ -78,7 +90,19 @@ async def test_register_images_no_face(
     
     mock_processor = MagicMock()
     mock_processor.decode_image.return_value = MagicMock()
-    mock_processor.app.get.return_value = []
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "failed_step": 1,
+        "error_message": "No face detected",
+        "results": {
+            "face_detected": False,
+            "single_face": False,
+            "blur_passed": False,
+            "distance_passed": False,
+            "orientation_passed": False,
+            "obstruction_passed": False
+        }
+    }
     mock_get_processor.return_value = mock_processor
 
     mock_file = MagicMock(spec=UploadFile)
@@ -91,6 +115,30 @@ async def test_register_images_no_face(
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["message"] == "Some photos failed face verification."
     assert exc_info.value.detail["results"][0]["error"] == "No face detected"
+
+@pytest.mark.anyio
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_empty_file(
+    mock_upsert_user, mock_get_processor
+):
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    
+    mock_processor = MagicMock()
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+    
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["message"] == "Some photos failed face verification."
+    assert exc_info.value.detail["results"][0]["error"] == "Empty upload file"
+    assert exc_info.value.detail["results"][0]["validation_checklist"]["database_match"] is None
+
 
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_all_embeddings")
@@ -176,6 +224,17 @@ def test_process_pending_queue_batching(
 def test_verify_face_match(mock_insert_log, mock_match, mock_decode, mock_get_processor):
     mock_decode.return_value = MagicMock()
     mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": True,
+            "distance_passed": True,
+            "orientation_passed": True,
+            "obstruction_passed": True
+        }
+    }
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
     mock_get_processor.return_value = mock_processor
 
@@ -191,6 +250,72 @@ def test_verify_face_match(mock_insert_log, mock_match, mock_decode, mock_get_pr
     assert result["match"] is True
     assert result["student_id"] == "S123"
     assert result["similarity_score"] == 0.85
+    assert result["validation_checklist"]["database_match"] is True
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.match_face_embedding")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_database_mismatch(mock_insert_log, mock_match, mock_decode, mock_get_processor):
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": True,
+            "distance_passed": True,
+            "orientation_passed": True,
+            "obstruction_passed": True
+        }
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+
+    mock_match.return_value = None
+
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
+
+    mock_decode.assert_called_once_with(b"image_bytes")
+    mock_match.assert_called_once_with([0.1] * 512)
+    mock_insert_log.assert_called_once_with(
+        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="No matching face found in database"
+    )
+    assert result["match"] is False
+    assert result["student_id"] is None
+    assert result["validation_checklist"]["database_match"] is False
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_quality_failure(mock_insert_log, mock_decode, mock_get_processor):
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "error_message": "Image is blurry",
+        "results": {
+            "face_detected": True,
+            "single_face": True,
+            "blur_passed": False,
+            "distance_passed": False,
+            "orientation_passed": False,
+            "obstruction_passed": False
+        }
+    }
+    mock_get_processor.return_value = mock_processor
+
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
+
+    mock_insert_log.assert_called_once_with(
+        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="Image is blurry"
+    )
+    assert result["match"] is False
+    assert result["student_id"] is None
+    assert result["validation_checklist"]["database_match"] is False
 
 
 @patch("app.services.verification_service.get_face_processor")
@@ -362,5 +487,42 @@ def test_delete_student_service_failure(mock_db_delete):
     
     assert exc_info.value.status_code == 500
     assert "Failed to delete student" in exc_info.value.detail
+
+
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+def test_process_pending_queue_validation_failure(
+    mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
+):
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"}
+    ]
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "failed_step": 3,
+        "error_message": "Image is blurry",
+        "results": {}
+    }
+    mock_get_processor.return_value = mock_processor
+    mock_get_all.return_value = []
+
+    result = process_pending_queue()
+
+    mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
+    mock_processor.validate_image_quality.assert_called_once()
+    mock_processor.extract_face_embedding.assert_not_called()
+    mock_update_status.assert_called_once_with(1, "failed", "Image is blurry")
+    mock_save.assert_not_called()
+    mock_invalidate.assert_not_called()
+    assert result["message"] == "Training completed for batch"
+    assert "S123" not in result["processed_students"]
+
 
 

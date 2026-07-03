@@ -55,18 +55,57 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     for file in files:
         file_bytes = await file.read()
         if not file_bytes:
+            results.append({
+                "filename": file.filename,
+                "passed": False,
+                "error": "Empty upload file",
+                "validation_checklist": {
+                    "face_detected": False,
+                    "single_face": False,
+                    "blur_passed": False,
+                    "distance_passed": False,
+                    "orientation_passed": False,
+                    "obstruction_passed": False,
+                    "database_match": None
+                }
+            })
+            has_failure = True
             continue
         cv_img = processor.decode_image(file_bytes)
         if cv_img is None:
-            results.append({"filename": file.filename, "passed": False, "error": "Cannot parse image file"})
+            results.append({
+                "filename": file.filename,
+                "passed": False,
+                "error": "Cannot parse image file",
+                "validation_checklist": {
+                    "face_detected": False,
+                    "single_face": False,
+                    "blur_passed": False,
+                    "distance_passed": False,
+                    "orientation_passed": False,
+                    "obstruction_passed": False,
+                    "database_match": None
+                }
+            })
             has_failure = True
             continue
-        faces = processor.app.get(cv_img)
-        if not faces:
-            results.append({"filename": file.filename, "passed": False, "error": "No face detected"})
+        
+        val_res = processor.validate_image_quality(cv_img)
+        if not val_res["passed"]:
+            results.append({
+                "filename": file.filename,
+                "passed": False,
+                "error": val_res["error_message"],
+                "validation_checklist": val_res["results"]
+            })
             has_failure = True
         else:
-            results.append({"filename": file.filename, "passed": True, "error": None})
+            results.append({
+                "filename": file.filename,
+                "passed": True,
+                "error": None,
+                "validation_checklist": val_res["results"]
+            })
             decoded_images.append((file.filename, file_bytes))
 
     if has_failure:
@@ -98,7 +137,8 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     return {
         "message": "Images queued for processing successfully",
         "student_id": student_id,
-        "status": "pending"
+        "status": "pending",
+        "validation_checklist": results[0]["validation_checklist"] if results else None
     }
 
 def get_registration_status(student_id: str) -> dict:
