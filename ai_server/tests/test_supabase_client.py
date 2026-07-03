@@ -142,3 +142,165 @@ def test_get_latest_check_in_log(mock_sb):
     mock_sb.table().select().eq().order.assert_called_with("timestamp", desc=True)
     mock_sb.table().select().eq().order().limit.assert_called_with(1)
 
+
+class TestDeleteStudentFromSupabase:
+    def test_delete_student_success(self, mock_sb):
+        from app.supabase_client import delete_student_from_supabase, SUPABASE_STORAGE_BUCKET
+        
+        # Mock database responses
+        # First query: users select id
+        mock_user_query = MagicMock()
+        mock_user_query.eq.return_value.execute.return_value.data = [{"id": 100}]
+        
+        # Second query: user_images select image_path
+        mock_img_query = MagicMock()
+        mock_img_query.eq.return_value.execute.return_value.data = [
+            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img1.jpg"},
+            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img2.jpg"}
+        ]
+        
+        # Third query: registration_queue select image_path
+        mock_queue_query = MagicMock()
+        mock_queue_query.eq.return_value.execute.return_value.data = [
+            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img3.jpg"}
+        ]
+        
+        # Delete queries
+        mock_delete_query1 = MagicMock()
+        mock_delete_query1.eq.return_value.execute.return_value = MagicMock()
+        
+        mock_delete_query2 = MagicMock()
+        mock_delete_query2.eq.return_value.execute.return_value = MagicMock()
+
+        # Storage mock
+        mock_bucket = MagicMock()
+        mock_sb.storage.from_.return_value = mock_bucket
+
+        # Wire mock_sb.table to return our queries sequentially or by table name
+        def table_mock_side_effect(table_name):
+            if table_name == "users":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_user_query
+                table_obj.delete.return_value = mock_delete_query1
+                return table_obj
+            elif table_name == "user_images":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_img_query
+                return table_obj
+            elif table_name == "registration_queue":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_queue_query
+                table_obj.delete.return_value = mock_delete_query2
+                return table_obj
+            return MagicMock()
+
+        mock_sb.table.side_effect = table_mock_side_effect
+
+        # Call function
+        res = delete_student_from_supabase("S001")
+
+        # Verify
+        assert res is True
+        
+        # Verify storage removal
+        mock_sb.storage.from_.assert_called_with(SUPABASE_STORAGE_BUCKET)
+        # Files should be img1.jpg, img2.jpg, img3.jpg in some order
+        removed_files = mock_bucket.remove.call_args[0][0]
+        assert set(removed_files) == {"img1.jpg", "img2.jpg", "img3.jpg"}
+
+        # Verify DB deletes
+        mock_delete_query1.eq.assert_called_with("student_id", "S001")
+        mock_delete_query2.eq.assert_called_with("student_id", "S001")
+
+    def test_delete_student_no_user(self, mock_sb):
+        from app.supabase_client import delete_student_from_supabase
+        
+        # Mock database response where user doesn't exist
+        mock_user_query = MagicMock()
+        mock_user_query.eq.return_value.execute.return_value.data = []
+
+        mock_queue_select = MagicMock()
+        mock_queue_select.eq.return_value.execute.return_value.data = []
+
+        mock_delete_query1 = MagicMock()
+        mock_delete_query1.eq.return_value.execute.return_value = MagicMock()
+
+        mock_delete_query2 = MagicMock()
+        mock_delete_query2.eq.return_value.execute.return_value = MagicMock()
+
+        def table_mock_side_effect(table_name):
+            if table_name == "users":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_user_query
+                table_obj.delete.return_value = mock_delete_query1
+                return table_obj
+            elif table_name == "registration_queue":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_queue_select
+                table_obj.delete.return_value = mock_delete_query2
+                return table_obj
+            return MagicMock()
+
+        mock_sb.table.side_effect = table_mock_side_effect
+
+        res = delete_student_from_supabase("S999")
+        assert res is True
+        
+        # Storage should NOT be called since user and queue didn't exist (no files)
+        mock_sb.storage.from_.assert_not_called()
+
+        # DB deletes should still be called to ensure any remaining records are cleared
+        mock_delete_query1.eq.assert_called_with("student_id", "S999")
+        mock_delete_query2.eq.assert_called_with("student_id", "S999")
+
+    def test_delete_student_queue_only(self, mock_sb):
+        from app.supabase_client import delete_student_from_supabase, SUPABASE_STORAGE_BUCKET
+        
+        # Mock database response where user doesn't exist
+        mock_user_query = MagicMock()
+        mock_user_query.eq.return_value.execute.return_value.data = []
+        
+        # registration_queue has pending items
+        mock_queue_select = MagicMock()
+        mock_queue_select.eq.return_value.execute.return_value.data = [
+            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img_queue.jpg"}
+        ]
+
+        mock_delete_query1 = MagicMock()
+        mock_delete_query1.eq.return_value.execute.return_value = MagicMock()
+
+        mock_delete_query2 = MagicMock()
+        mock_delete_query2.eq.return_value.execute.return_value = MagicMock()
+
+        mock_bucket = MagicMock()
+        mock_sb.storage.from_.return_value = mock_bucket
+
+        def table_mock_side_effect(table_name):
+            if table_name == "users":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_user_query
+                table_obj.delete.return_value = mock_delete_query1
+                return table_obj
+            elif table_name == "registration_queue":
+                table_obj = MagicMock()
+                table_obj.select.return_value = mock_queue_select
+                table_obj.delete.return_value = mock_delete_query2
+                return table_obj
+            return MagicMock()
+
+        mock_sb.table.side_effect = table_mock_side_effect
+
+        res = delete_student_from_supabase("S777")
+        assert res is True
+        
+        # Storage should be called for the queue file
+        mock_sb.storage.from_.assert_called_with(SUPABASE_STORAGE_BUCKET)
+        removed_files = mock_bucket.remove.call_args[0][0]
+        assert set(removed_files) == {"img_queue.jpg"}
+
+        # DB deletes should still be called to ensure any remaining records are cleared
+        mock_delete_query1.eq.assert_called_with("student_id", "S777")
+        mock_delete_query2.eq.assert_called_with("student_id", "S777")
+
+
+

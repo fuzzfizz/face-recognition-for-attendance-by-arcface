@@ -58,6 +58,15 @@ def _init_sqlite():
 
     connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
     _sqlite_engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+    if DATABASE_URL.startswith("sqlite"):
+        from sqlalchemy import event
+        @event.listens_for(_sqlite_engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
     _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_sqlite_engine)
 
     Base.metadata.create_all(bind=_sqlite_engine)
@@ -314,3 +323,47 @@ def save_all_embeddings(embeddings_data):
 def match_face_embedding(query_embedding):
     """Match a face embedding against local .pkl (fast, no network)."""
     return match_face(query_embedding)
+
+
+def delete_student_from_db(student_id: str) -> bool:
+    if supabase_available():
+        from app.supabase_client import delete_student_from_supabase
+        return delete_student_from_supabase(student_id)
+    else:
+        _init_sqlite()
+        session = next(_get_sqlite_session())
+        try:
+            import os
+            files_to_delete = []
+
+            user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
+            if user:
+                images = session.query(_UserImageModel).filter(_UserImageModel.user_id == user.id).all()
+                for img in images:
+                    if img.image_path:
+                        files_to_delete.append(img.image_path)
+                session.delete(user)
+
+            q_items = session.query(_QueueModel).filter(_QueueModel.student_id == student_id).all()
+            for item in q_items:
+                if item.image_path:
+                    files_to_delete.append(item.image_path)
+                session.delete(item)
+
+            session.commit()
+
+            # Delete physical files from disk only after successful commit
+            for filepath in files_to_delete:
+                if os.path.exists(filepath):
+                    try:
+                        os.remove(filepath)
+                    except Exception:
+                        pass
+
+            return True
+        except Exception as e:
+            print(f"[SQLite] delete_student_from_db error: {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()

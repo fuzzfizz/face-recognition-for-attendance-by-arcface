@@ -227,3 +227,33 @@ def get_image_url(filename: str) -> Optional[str]:
     except Exception as e:
         print(f"[Supabase] get_image_url error: {e}")
         return None
+
+
+def delete_student_from_supabase(student_id: str) -> bool:
+    if not is_available():
+        return False
+    try:
+        sb = get_supabase()
+        # 1. Fetch paths from user_images and registration_queue to delete files
+        paths = []
+        user_res = sb.table("users").select("id").eq("student_id", student_id).execute()
+        if user_res.data:
+            user_id = user_res.data[0]["id"]
+            img_res = sb.table("user_images").select("image_path").eq("user_id", user_id).execute()
+            paths.extend([row["image_path"] for row in img_res.data if row.get("image_path")])
+        
+        q_res = sb.table("registration_queue").select("image_path").eq("student_id", student_id).execute()
+        paths.extend([row["image_path"] for row in q_res.data if row.get("image_path")])
+
+        # Extract filenames to remove from Supabase Storage
+        filenames = list(set([p.split("/")[-1] for p in paths if "/" in p]))
+        if filenames:
+            sb.storage.from_(SUPABASE_STORAGE_BUCKET).remove(filenames)
+
+        # 2. Delete user and queue history
+        sb.table("users").delete().eq("student_id", student_id).execute()
+        sb.table("registration_queue").delete().eq("student_id", student_id).execute()
+        return True
+    except Exception as e:
+        print(f"[Supabase] delete_student_from_supabase error: {e}")
+        return False
