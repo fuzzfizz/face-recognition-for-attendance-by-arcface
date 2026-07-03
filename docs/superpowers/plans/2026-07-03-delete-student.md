@@ -1,6 +1,6 @@
 # Delete Student Feature Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement a "Delete Student" feature allowing administrators to delete a student, their photos, and face recognition embeddings from the Web Dashboard while preserving historical check-in logs.
 
@@ -25,7 +25,7 @@
 **Interfaces:**
 - Produces: `delete_student_from_db(student_id: str) -> bool`
 
-- [ ] **Step 1: Write database deletion tests**
+- [x] **Step 1: Write database deletion tests**
   Add unit tests in `ai_server/tests/test_database.py` to verify that `delete_student_from_db` deletes users and queue items from SQLite, and triggers file deletions.
   ```python
   from app.database import delete_student_from_db, insert_queue_item, upsert_user
@@ -40,11 +40,11 @@
       assert success is True
   ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `venv\Scripts\python -m pytest tests/test_database.py`
   Expected: FAIL with `ImportError` or `AttributeError` (function not defined)
 
-- [ ] **Step 3: Implement Supabase Storage and DB delete logic**
+- [x] **Step 3: Implement Supabase Storage and DB delete logic**
   In `ai_server/app/supabase_client.py`, add `delete_student_from_supabase(student_id: str) -> bool`:
   ```python
   def delete_student_from_supabase(student_id: str) -> bool:
@@ -75,7 +75,7 @@
           return False
   ```
 
-- [ ] **Step 4: Implement SQLite deletion logic**
+- [x] **Step 4: Implement SQLite deletion logic**
   In `ai_server/app/database.py`, add `delete_student_from_db(student_id: str) -> bool` that wraps both SQLite and Supabase deletion:
   ```python
   def delete_student_from_db(student_id: str) -> bool:
@@ -117,11 +117,11 @@
               session.close()
   ```
 
-- [ ] **Step 5: Run tests and verify they pass**
+- [x] **Step 5: Run tests and verify they pass**
   Run: `venv\Scripts\python -m pytest tests/test_database.py`
   Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
   Run:
   ```bash
   git add ai_server/app/supabase_client.py ai_server/app/database.py ai_server/tests/test_database.py
@@ -141,7 +141,7 @@
 - Consumes: `delete_student_from_db(student_id: str) -> bool`
 - Produces: `DELETE /register/student/{student_id}`
 
-- [ ] **Step 1: Write service deletion tests**
+- [x] **Step 1: Write service deletion tests**
   Add unit tests in `ai_server/tests/test_services.py` to check that deletion calls db deletes, saves updated embeddings (with the target student filtered out), and invalidates cache:
   ```python
   @patch("app.services.registration_service.delete_student_from_db")
@@ -163,11 +163,11 @@
       mock_invalidate.assert_called_once()
   ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `venv\Scripts\python -m pytest tests/test_services.py`
   Expected: FAIL
 
-- [ ] **Step 3: Implement service layer delete orchestration**
+- [x] **Step 3: Implement service layer delete orchestration**
   In `ai_server/app/services/registration_service.py`, implement `delete_student(student_id: str) -> dict`:
   ```python
   def delete_student(student_id: str) -> dict:
@@ -193,7 +193,7 @@
       }
   ```
 
-- [ ] **Step 4: Add HTTP DELETE endpoint**
+- [x] **Step 4: Add HTTP DELETE endpoint**
   In `ai_server/app/routers/registration.py`, register the route:
   ```python
   from fastapi import Depends
@@ -205,11 +205,11 @@
       return registration_service.delete_student(student_id)
   ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
   Run: `venv\Scripts\python -m pytest tests/test_services.py`
   Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
   Run:
   ```bash
   git add ai_server/app/services/registration_service.py ai_server/app/routers/registration.py ai_server/tests/test_services.py
@@ -227,7 +227,7 @@
 - Consumes: `DELETE /register/student/{student_id}`
 - Produces: `POST /api/delete_student.php`
 
-- [ ] **Step 1: Write delete proxy code**
+- [x] **Step 1: Write delete proxy code**
   Create `web_dashboard/api/delete_student.php` with the following content:
   ```php
   <?php
@@ -283,7 +283,7 @@
   echo $response;
   ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
   Run:
   ```bash
   git add web_dashboard/api/delete_student.php
@@ -297,7 +297,7 @@
 **Files:**
 - Modify: `web_dashboard/index.php`
 
-- [ ] **Step 1: Update Students table headers**
+- [x] **Step 1: Update Students table headers**
   In `web_dashboard/index.php`, update the `Students` table `<thead>` to include an `Actions` header column.
   ```html
   <thead>
@@ -305,7 +305,7 @@
   </thead>
   ```
 
-- [ ] **Step 2: Add Delete button to table rows**
+- [x] **Step 2: Add Delete button to table rows**
   In `web_dashboard/index.php`, inside `loadStudents()`, update row template rendering:
   ```javascript
   tbody.innerHTML = rows.map(row => `
@@ -321,7 +321,7 @@
   `).join('');
   ```
 
-- [ ] **Step 3: Define deleteStudent JS function**
+- [x] **Step 3: Define deleteStudent JS function**
   In `web_dashboard/index.php`, add `deleteStudent(studentId)`:
   ```javascript
   async function deleteStudent(studentId) {
@@ -348,7 +348,7 @@
   }
   ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   Run:
   ```bash
   git add web_dashboard/index.php
