@@ -21,6 +21,169 @@ if (!file_exists(__DIR__ . '/config.php')) {
   <title>FaceAttend Dashboard</title>
   <meta name="description" content="Face recognition attendance system dashboard — live check-in logs and student registration status.">
   <link rel="stylesheet" href="assets/style.css">
+  <style>
+  /* ── Expandable Details ── */
+  .details-container {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      background: #13151f44;
+  }
+  .details-container.expanded {
+      max-height: 2000px;
+  }
+  .details-inner {
+      padding: 16px 24px;
+      border-bottom: 1px solid #2d3148;
+  }
+  .details-arrow {
+      display: inline-block;
+      margin-right: 8px;
+      font-size: 10px;
+      color: #64748b;
+      transition: transform 0.2s ease;
+  }
+  .details-arrow.expanded {
+      transform: rotate(90deg);
+      color: #a78bfa;
+  }
+
+  /* Details Tabs */
+  .details-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #1e2235;
+      padding-bottom: 8px;
+  }
+  .details-tab {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+  }
+  .details-tab:hover {
+      color: #cbd5e1;
+      background: #1e2235;
+  }
+  .details-tab.active {
+      color: #a78bfa;
+      background: #a78bfa11;
+  }
+
+  /* Tab contents */
+  .details-tab-content {
+      display: none;
+  }
+  .details-tab-content.active {
+      display: block;
+  }
+
+  /* Checklist Styling */
+  .photo-checklist-card {
+      background: #1a1d2e;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+  }
+  .photo-checklist-header {
+      background: #13151f99;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2d3148;
+  }
+  .photo-filename {
+      font-family: monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+  }
+  .status-badge--small {
+      padding: 1px 6px;
+      font-size: 10px;
+      border-radius: 12px;
+  }
+  .photo-checklist-body {
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 16px;
+  }
+  @media (max-width: 768px) {
+      .photo-checklist-body {
+          grid-template-columns: 1fr;
+      }
+  }
+  .checklist-item {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+  }
+  .checklist-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-right: 8px;
+      font-size: 10px;
+      font-weight: bold;
+  }
+  .check-passed { color: #cbd5e1; }
+  .check-passed .checklist-icon {
+      background: #22c55e22;
+      color: #22c55e;
+  }
+  .check-failed { color: #f87171; }
+  .check-failed .checklist-icon {
+      background: #ef444422;
+      color: #ef4444;
+  }
+  .check-skipped { color: #64748b; }
+  .check-skipped .checklist-icon {
+      background: #1e2235;
+      color: #64748b;
+      border: 1px solid #2d3148;
+  }
+  .check-pending { color: #f59e0b; }
+  .check-pending .checklist-icon {
+      background: #f59e0b22;
+      color: #f59e0b;
+  }
+  .check-error-msg {
+      color: #f87171;
+      margin-left: 4px;
+      font-style: italic;
+  }
+  .general-checklist-error {
+      background: #ef444415;
+      border-bottom: 1px solid #ef444433;
+      padding: 8px 16px;
+      color: #f87171;
+      font-size: 12px;
+  }
+
+  /* Raw data */
+  .raw-data-json {
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      color: #a78bfa;
+  }
+  </style>
 </head>
 <body>
 
@@ -175,6 +338,9 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+function getSafeDOMId(str) {
+  return (str || '').replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 function formatTime(isoStr) {
   if (!isoStr) return '—';
@@ -409,10 +575,12 @@ async function loadQueue() {
             statuses: new Set(),
             created_ats: [],
             processed_ats: [],
-            errors: []
+            errors: [],
+            raw_items: []
           };
         }
         groups[sid].items.push(row.image_path);
+        groups[sid].raw_items.push(row);
         if (row.status) groups[sid].statuses.add(row.status);
         if (row.created_at) groups[sid].created_ats.push(new Date(row.created_at));
         if (row.processed_at) groups[sid].processed_ats.push(new Date(row.processed_at));
@@ -441,7 +609,7 @@ async function loadQueue() {
 
         // Dropdown HTML for photos
         const dropdownHtml = `
-          <select class="filter-select" style="max-width:240px; margin:0;" onchange="if(this.value) window.open(this.value, '_blank'); this.value='';">
+          <select class="filter-select" style="max-width:240px; margin:0;" onchange="if(this.value) window.open(this.value, '_blank'); this.value='';" onclick="event.stopPropagation()">
             <option value="">View Photos (${totalPhotos})</option>
             ${g.items.map((url, idx) => {
               const filename = url.split('/').pop();
@@ -450,14 +618,48 @@ async function loadQueue() {
           </select>
         `;
 
+        const isExpanded = expandedQueueRows.has(studentId);
+
         return `
-          <tr>
-            <td><span class="cell-id">${escapeHtml(studentId) || '—'}</span></td>
+          <tr class="queue-row-header" onclick="toggleQueueDetails('${escapeHtml(studentId)}')" style="cursor:pointer">
+            <td>
+              <span class="details-arrow ${isExpanded ? 'expanded' : ''}" id="arrow-${getSafeDOMId(studentId)}">▶</span>
+              <span class="cell-id">${escapeHtml(studentId) || '—'}</span>
+            </td>
             <td>${dropdownHtml}</td>
             <td>${statusBadge(groupStatus)}</td>
             <td>${escapeHtml(formatDateTime(maxCreated))}</td>
             <td>${maxProcessed ? escapeHtml(formatDateTime(maxProcessed)) : '<span style="color:#64748b">—</span>'}</td>
             <td>${errorDisplay ? `<span class="cell-error">${escapeHtml(errorDisplay)}</span>` : '<span style="color:#64748b">—</span>'}</td>
+          </tr>
+          <tr id="details-row-${getSafeDOMId(studentId)}" class="queue-details-row" style="${isExpanded ? 'display: table-row;' : 'display: none;'}">
+            <td colspan="6" style="padding:0; border:none;">
+              <div id="details-container-${getSafeDOMId(studentId)}" class="details-container ${isExpanded ? 'expanded' : ''}">
+                <div class="details-inner">
+                  
+                  <!-- Tabs Header -->
+                  <div class="details-tabs">
+                    <button class="details-tab active" onclick="switchQueueTab(event, '${escapeHtml(studentId)}', 'checklist')">
+                      ⚠️ Failure Checklist
+                    </button>
+                    <button class="details-tab" onclick="switchQueueTab(event, '${escapeHtml(studentId)}', 'raw')">
+                      📊 Raw Data
+                    </button>
+                  </div>
+                  
+                  <!-- Tab: Failure Checklist -->
+                  <div id="tab-content-${getSafeDOMId(studentId)}-checklist" class="details-tab-content active">
+                    ${renderChecklistsHtml(g.raw_items)}
+                  </div>
+                  
+                  <!-- Tab: Raw Data -->
+                  <div id="tab-content-${getSafeDOMId(studentId)}-raw" class="details-tab-content">
+                    <pre class="raw-data-json"><code>${escapeHtml(JSON.stringify(g.raw_items, null, 2))}</code></pre>
+                  </div>
+                  
+                </div>
+              </div>
+            </td>
           </tr>
         `;
       }).join('');
@@ -514,6 +716,205 @@ async function deleteStudent(studentId) {
   } catch (e) {
     alert('Error: ' + e.message);
   }
+}
+
+// Track expanded queue rows
+let expandedQueueRows = new Set();
+
+function toggleQueueDetails(studentId) {
+  const safeId = getSafeDOMId(studentId);
+  const row = document.getElementById('details-row-' + safeId);
+  const container = document.getElementById('details-container-' + safeId);
+  const arrow = document.getElementById('arrow-' + safeId);
+  if (!row || !container || !arrow) return;
+
+  if (expandedQueueRows.has(studentId)) {
+    // Collapse
+    expandedQueueRows.delete(studentId);
+    container.classList.remove('expanded');
+    arrow.classList.remove('expanded');
+    setTimeout(() => {
+      if (!expandedQueueRows.has(studentId)) {
+        row.style.display = 'none';
+      }
+    }, 300);
+  } else {
+    // Expand
+    expandedQueueRows.add(studentId);
+    row.style.display = 'table-row';
+    row.offsetHeight; // trigger reflow
+    container.classList.add('expanded');
+    arrow.classList.add('expanded');
+  }
+}
+
+function switchQueueTab(event, studentId, tabName) {
+  event.stopPropagation(); // Prevent toggling the row
+  
+  const safeId = getSafeDOMId(studentId);
+  const container = document.getElementById('details-container-' + safeId);
+  if (!container) return;
+  
+  // Update active tab button
+  container.querySelectorAll('.details-tab').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.currentTarget.classList.add('active');
+  
+  // Update active content
+  container.querySelectorAll('.details-tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  const targetContent = document.getElementById(`tab-content-${safeId}-${tabName}`);
+  if (targetContent) {
+    targetContent.classList.add('active');
+  }
+}
+
+function parseValidationChecks(item) {
+  const status = item.status;
+  const errMsg = item.error_message || '';
+  
+  const checks = [
+    { key: 'face_detected', label: 'Face Detection' },
+    { key: 'single_face', label: 'Single Face Check' },
+    { key: 'blur_passed', label: 'Blur Check' },
+    { key: 'distance_passed', label: 'Distance (Size) Check' },
+    { key: 'orientation_passed', label: 'Orientation (Pose) Check' },
+    { key: 'obstruction_passed', label: 'Obstruction Check' }
+  ];
+
+  let results = {};
+  if (status === 'completed') {
+    checks.forEach(c => results[c.key] = { status: 'passed' });
+  } else if (status === 'pending') {
+    checks.forEach(c => results[c.key] = { status: 'pending' });
+  } else {
+    let failedStep = -1;
+    let failReason = errMsg;
+    
+    if (errMsg.includes('No face') || errMsg.includes('Invalid image')) {
+      failedStep = 1;
+    } else if (errMsg.includes('Multiple faces')) {
+      failedStep = 2;
+    } else if (errMsg.includes('blurry') || errMsg.includes('motion') || errMsg.includes('variance')) {
+      failedStep = 3;
+    } else if (errMsg.includes('too far') || errMsg.includes('too small') || errMsg.includes('size:')) {
+      failedStep = 4;
+    } else if (errMsg.includes('not straight') || errMsg.includes('profile') || errMsg.includes('sideways') || errMsg.includes('tilted')) {
+      failedStep = 5;
+    } else if (errMsg.includes('Obstruction') || errMsg.includes('confidence:')) {
+      failedStep = 6;
+    }
+    
+    checks.forEach((c, idx) => {
+      const stepNum = idx + 1;
+      if (failedStep === -1) {
+        results[c.key] = { status: 'skipped' };
+      } else if (stepNum < failedStep) {
+        results[c.key] = { status: 'passed' };
+      } else if (stepNum === failedStep) {
+        results[c.key] = { status: 'failed', message: failReason };
+      } else {
+        results[c.key] = { status: 'skipped' };
+      }
+    });
+  }
+  return results;
+}
+
+function renderChecklistsHtml(items) {
+  return items.map((item, idx) => {
+    const filename = item.image_path.split('/').pop();
+    const checks = parseValidationChecks(item);
+    
+    const checkItemsHtml = Object.entries(checks).map(([key, check]) => {
+      let icon = '';
+      let cls = '';
+      let suffix = '';
+      
+      if (check.status === 'passed') {
+        icon = '✓';
+        cls = 'check-passed';
+      } else if (check.status === 'failed') {
+        icon = '✗';
+        cls = 'check-failed';
+        if (check.message) {
+          suffix = `: <span class="check-error-msg">${escapeHtml(check.message)}</span>`;
+        }
+      } else if (check.status === 'skipped') {
+        icon = '○';
+        cls = 'check-skipped';
+        suffix = ' (skipped)';
+      } else { // pending
+        icon = '—';
+        cls = 'check-pending';
+        suffix = ' (pending)';
+      }
+      
+      const labels = {
+        face_detected: 'Face Detection',
+        single_face: 'Single Face Check',
+        blur_passed: 'Blur Check',
+        distance_passed: 'Distance (Size) Check',
+        orientation_passed: 'Orientation (Pose) Check',
+        obstruction_passed: 'Obstruction Check'
+      };
+      const label = labels[key] || key;
+      
+      return `
+        <div class="checklist-item ${cls}">
+          <span class="checklist-icon">${icon}</span>
+          <span class="checklist-label">${escapeHtml(label)}</span>${suffix}
+        </div>
+      `;
+    }).join('');
+
+    let statusCls = item.status || 'none';
+    let statusText = item.status ? item.status.toUpperCase() : 'UNKNOWN';
+    
+    let generalErrorHtml = '';
+    const hasError = item.error_message && item.error_message.trim().length > 0;
+    if (hasError) {
+      const errMsg = item.error_message;
+      const isQualityCheckError = errMsg.includes('No face') || 
+                                  errMsg.includes('Invalid image') ||
+                                  errMsg.includes('Multiple faces') ||
+                                  errMsg.includes('blurry') ||
+                                  errMsg.includes('motion') ||
+                                  errMsg.includes('variance') ||
+                                  errMsg.includes('too far') ||
+                                  errMsg.includes('too small') ||
+                                  errMsg.includes('size:') ||
+                                  errMsg.includes('not straight') ||
+                                  errMsg.includes('profile') ||
+                                  errMsg.includes('sideways') ||
+                                  errMsg.includes('tilted') ||
+                                  errMsg.includes('Obstruction') ||
+                                  errMsg.includes('confidence:');
+      if (!isQualityCheckError) {
+        generalErrorHtml = `
+          <div class="general-checklist-error">
+            <strong>System Error:</strong> ${escapeHtml(errMsg)}
+          </div>
+        `;
+      }
+    }
+
+    return `
+      <div class="photo-checklist-card">
+        <div class="photo-checklist-header">
+          <span class="photo-filename">${escapeHtml(filename)}</span>
+          <span class="status-badge status-badge--small status-badge--${statusCls}">${statusText}</span>
+        </div>
+        ${generalErrorHtml}
+        <div class="photo-checklist-body">
+          ${checkItemsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ── Polling ──
