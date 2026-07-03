@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
@@ -219,7 +220,7 @@ class UploadScreen extends StatelessWidget {
                 itemCount: viewModel.imagePaths.length,
                 itemBuilder: (context, index) {
                   final localPath = viewModel.imagePaths[index];
-                  final filename = localPath.split('/').last;
+                  final filename = p.basename(localPath);
 
                   final results =
                       viewModel.validationResults.where((r) => r.filename == filename);

@@ -17,17 +17,13 @@ from app.services.verification_service import verify_face
 # ── Registration Service ─────────────────────────────────────────────
 
 @pytest.mark.anyio
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
 @patch("app.services.registration_service.insert_queue_item")
 async def test_register_images_success(
-    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor,
-    mock_get_all_embeddings, mock_save_all_embeddings
+    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor
 ):
-    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     mock_upload_image.return_value = "http://storage.co/img.jpg"
 
@@ -43,8 +39,6 @@ async def test_register_images_success(
 
     result = await register_images("S123", "John Doe", [mock_file])
 
-    mock_get_all_embeddings.assert_called_once()
-    mock_save_all_embeddings.assert_called_once_with([])
     mock_upsert_user.assert_called_once_with("S123", "John Doe")
     mock_upload_image.assert_called_once_with(b"image_content", "S123", "jpg")
     mock_insert_queue.assert_called_once_with("S123", "http://storage.co/img.jpg")
@@ -52,14 +46,11 @@ async def test_register_images_success(
     assert result["student_id"] == "S123"
 
 @pytest.mark.anyio
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 async def test_register_images_cannot_parse(
-    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_save_all_embeddings
+    mock_upsert_user, mock_get_processor
 ):
-    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     
     mock_processor = MagicMock()
@@ -78,14 +69,11 @@ async def test_register_images_cannot_parse(
     assert exc_info.value.detail["results"][0]["error"] == "Cannot parse image file"
 
 @pytest.mark.anyio
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.get_all_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 async def test_register_images_no_face(
-    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_save_all_embeddings
+    mock_upsert_user, mock_get_processor
 ):
-    mock_get_all_embeddings.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
     
     mock_processor = MagicMock()
@@ -174,7 +162,7 @@ def test_process_pending_queue_batching(
     assert result["message"] == "Training completed for batch"
     assert "S123" in result["processed_students"]
     assert "S456" in result["processed_students"]
-    assert mock_save.call_count == 1  # Called once at the end
+    assert mock_save.call_count == 2  # Once for S123, once for S456 (periodic saving)
     assert mock_update_status.call_count == 3
 
 

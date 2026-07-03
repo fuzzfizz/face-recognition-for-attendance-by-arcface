@@ -7,7 +7,6 @@ from app.database import (
     upload_image,
     insert_queue_item,
     get_all_embeddings,
-    save_all_embeddings,
 )
 
 async def register_images(student_id: str, name: str, files: List[UploadFile]) -> dict:
@@ -15,9 +14,6 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
-    existing = get_all_embeddings()
-    existing = [e for e in existing if e.get("student_id") != student_id]
-    save_all_embeddings(existing)
 
     user = upsert_user(student_id, name)
     if not user:

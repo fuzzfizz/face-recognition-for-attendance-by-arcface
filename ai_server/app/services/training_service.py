@@ -32,7 +32,6 @@ def process_pending_queue(limit: int = 50) -> dict:
     processor = get_face_processor()
     processed_students = []
     all_item_statuses = []
-    any_new_saved = False
 
     existing = get_all_embeddings()
 
@@ -57,7 +56,6 @@ def process_pending_queue(limit: int = 50) -> dict:
                 all_item_statuses.append((item["id"], "failed", str(e)))
 
         if new_embeddings:
-            any_new_saved = True
             student_entry = next((e for e in existing if e.get("student_id") == student_id), None)
             if student_entry:
                 student_entry["embeddings"].extend(new_embeddings)
@@ -69,11 +67,9 @@ def process_pending_queue(limit: int = 50) -> dict:
                     "student_id": student_id,
                     "embeddings": new_embeddings[-20:]
                 })
+            save_all_embeddings(existing)
+            invalidate_cache()
             processed_students.append(student_id)
-
-    if any_new_saved:
-        save_all_embeddings(existing)
-        invalidate_cache()
 
     for item_id, db_status, err_msg in all_item_statuses:
         update_queue_item_status(item_id, db_status, err_msg)
