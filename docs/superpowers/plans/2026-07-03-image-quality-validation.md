@@ -1,6 +1,6 @@
 # Image Quality Validation and Diagnostics Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement a robust 7-step face quality validation pipeline (No Face, Multiple Faces, Blur, Size, Orientation, Obstructions, and Database Match) in the FastAPI backend, log failure reasons, and expose a 2-tab expandable panel on the Web Dashboard queue list.
 
@@ -41,7 +41,7 @@
   }
   ```
 
-- [ ] **Step 1: Write image validation unit tests**
+- [x] **Step 1: Write image validation unit tests**
   Create `ai_server/tests/test_quality_checks.py`:
   ```python
   import pytest
@@ -63,11 +63,11 @@
       assert "No face detected" in res["error_message"]
   ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `venv\Scripts\python -m pytest tests/test_quality_checks.py`
   Expected: FAIL (missing methods/imports)
 
-- [ ] **Step 3: Implement blur calculation in image_utils.py**
+- [x] **Step 3: Implement blur calculation in image_utils.py**
   In `ai_server/app/utils/image_utils.py`, add:
   ```python
   import cv2
@@ -80,7 +80,7 @@
       return float(cv2.Laplacian(gray, cv2.CV_64F).var())
   ```
 
-- [ ] **Step 4: Implement quality validation in face_processor.py**
+- [x] **Step 4: Implement quality validation in face_processor.py**
   In `ai_server/app/face_processor.py`, add:
   ```python
   import math
@@ -154,11 +154,11 @@
       return {"passed": True, "failed_step": None, "error_message": None, "results": results}
   ```
 
-- [ ] **Step 5: Run tests and verify they pass**
+- [x] **Step 5: Run tests and verify they pass**
   Run: `venv\Scripts\python -m pytest tests/test_quality_checks.py`
   Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
   ```bash
   git add ai_server/app/utils/image_utils.py ai_server/app/face_processor.py ai_server/tests/test_quality_checks.py
   git commit -m "feat(ai_server): implement 7-step image quality validation checks"
@@ -176,7 +176,7 @@
 **Interfaces:**
 - Consumes: Database engines and connection models
 
-- [ ] **Step 1: Write SQLite database migration tests**
+- [x] **Step 1: Write SQLite database migration tests**
   In `ai_server/tests/test_database.py`, add assertions for `error_message` check:
   ```python
   def test_insert_log_with_error_message():
@@ -185,11 +185,11 @@
       insert_log(student_id=None, similarity_score=0.0, device_id="TEST-DEV", error_message="Blur Check Failed")
   ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `venv\Scripts\python -m pytest tests/test_database.py`
   Expected: FAIL (SQLite table doesn't have the column yet)
 
-- [ ] **Step 3: Update SQLite schema initialization**
+- [x] **Step 3: Update SQLite schema initialization**
   In `ai_server/app/database.py`, update `_init_sqlite()` to run an migration `ALTER TABLE` if column is missing:
   ```python
   # After metadata.create_all(_sqlite_engine):
@@ -206,7 +206,7 @@
           conn.execute(text("ALTER TABLE registration_queue ADD COLUMN error_message VARCHAR;"))
   ```
 
-- [ ] **Step 4: Update SQLAlchemy models**
+- [x] **Step 4: Update SQLAlchemy models**
   In `ai_server/app/models.py`, add `error_message` field:
   ```python
   class CheckInLog(Base):
@@ -218,7 +218,7 @@
       error_message = Column(String, nullable=True)
   ```
 
-- [ ] **Step 5: Update `insert_log` signature**
+- [x] **Step 5: Update `insert_log` signature**
   In `ai_server/app/database.py`, update `insert_log` to support `error_message`:
   ```python
   def insert_log(student_id: Optional[str], similarity_score: float, device_id: str, user_id: Optional[int] = None, error_message: Optional[str] = None):
@@ -233,14 +233,14 @@
       )
   ```
 
-- [ ] **Step 6: Update Supabase Client**
+- [x] **Step 6: Update Supabase Client**
   In `ai_server/app/supabase_client.py`, update log inserts to support `error_message`.
 
-- [ ] **Step 7: Run database tests**
+- [x] **Step 7: Run database tests**
   Run: `venv\Scripts\python -m pytest tests/test_database.py`
   Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
   ```bash
   git add ai_server/app/models.py ai_server/app/database.py ai_server/app/supabase_client.py
   git commit -m "feat(database): support error_message field in check-in logs and registration queue"
@@ -259,14 +259,14 @@
 - Produces: `POST /verify` updated schema returning checklist
 - Produces: `POST /register` updated schema returning checklist
 
-- [ ] **Step 1: Write endpoint validation tests**
+- [x] **Step 1: Write endpoint validation tests**
   In `ai_server/tests/test_routers.py`, add tests asserting `/verify` validation failures return HTTP checklist and log them to DB.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
   Run: `venv\Scripts\python -m pytest tests/test_routers.py`
   Expected: FAIL
 
-- [ ] **Step 3: Update `verify_face` in verification_service.py**
+- [x] **Step 3: Update `verify_face` in verification_service.py**
   Run `validate_image_quality` first:
   ```python
   # inside verify_face
@@ -283,14 +283,14 @@
       }
   ```
 
-- [ ] **Step 4: Update schemas.py**
+- [x] **Step 4: Update schemas.py**
   Define response models containing `validation_checklist`.
 
-- [ ] **Step 5: Run tests and verify they pass**
+- [x] **Step 5: Run tests and verify they pass**
   Run: `venv\Scripts\python -m pytest`
   Expected: PASS (All 70+ tests pass)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
   ```bash
   git add ai_server/app/services/verification_service.py ai_server/app/services/registration_service.py ai_server/app/schemas.py
   git commit -m "feat(api): integrate quality checkpoints into verification and registration pipelines"
@@ -303,7 +303,7 @@
 **Files:**
 - Modify: `web_dashboard/index.php` (render list collapse UI, 2 tabs panel)
 
-- [ ] **Step 1: Add style rule for expandable details**
+- [x] **Step 1: Add style rule for expandable details**
   Add inline CSS/classes in `web_dashboard/index.php` for slide down animation:
   ```css
   .details-container {
@@ -316,15 +316,15 @@
   }
   ```
 
-- [ ] **Step 2: Update row rendering with ▶/▼ arrow and expandable checklist markup**
+- [x] **Step 2: Update row rendering with ▶/▼ arrow and expandable checklist markup**
   Inject dataset fields and toggle click triggers into rows.
   Render horizontal tabs: `Failure Checklist` and `Raw Data`.
 
-- [ ] **Step 3: Verify syntax of index.php**
+- [x] **Step 3: Verify syntax of index.php**
   Run: `php -l web_dashboard/index.php`
   Expected: No syntax errors detected in index.php
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   ```bash
   git add web_dashboard/index.php
   git commit -m "feat(dashboard): add expandable row checklist and metadata tabs to queue list"
