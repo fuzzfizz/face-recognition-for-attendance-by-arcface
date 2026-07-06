@@ -27,8 +27,8 @@ function formatTime(isoStr) {
 function formatRelative(isoStr) {
   if (!isoStr) return '';
   const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
-  if (diff < 60)    return diff + ' seconds ago';
-  if (diff < 3600)  return Math.floor(diff / 60) + ' minutes ago';
+  if (diff < 60) return diff + ' seconds ago';
+  if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
   if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
   return Math.floor(diff / 86400) + ' days ago';
 }
@@ -77,8 +77,8 @@ function getAdminKey() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const isDark = theme === 'dark';
-  document.getElementById('theme-icon').textContent  = isDark ? '🌙' : '☀️';
-  document.getElementById('theme-label').textContent = isDark ? 'Light' : 'Dark';
+  document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = isDark ? 'Dark' : 'Light';
   localStorage.setItem('theme', theme);
 }
 
