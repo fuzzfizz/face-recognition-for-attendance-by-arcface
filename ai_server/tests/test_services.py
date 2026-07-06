@@ -132,6 +132,156 @@ async def test_register_images_empty_file(
     assert exc_info.value.detail["results"][0]["validation_checklist"]["database_match"] is None
 
 
+@pytest.mark.anyio
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_quota_already_full(
+    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_get_pending_queue_items
+):
+    # Student S123 has 5 registered embeddings and 5 pending queue records (total = 10)
+    mock_get_all_embeddings.return_value = [
+        {
+            "student_id": "S123",
+            "embeddings": [[0.1] * 512] * 5
+        }
+    ]
+    mock_get_pending_queue_items.return_value = [
+        {"student_id": "S123", "image_path": "/path/1.jpg"},
+        {"student_id": "S123", "image_path": "/path/2.jpg"},
+        {"student_id": "S123", "image_path": "/path/3.jpg"},
+        {"student_id": "S123", "image_path": "/path/4.jpg"},
+        {"student_id": "S123", "image_path": "/path/5.jpg"},
+        {"student_id": "S456", "image_path": "/path/other.jpg"},
+    ]
+    
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+        
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Already registered 10 photos (Quota full)"
+
+
+@pytest.mark.anyio
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_quota_exceeded_partial(
+    mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_get_pending_queue_items
+):
+    # Student S123 has 8 registered embeddings and 0 pending records (total = 8)
+    mock_get_all_embeddings.return_value = [
+        {
+            "student_id": "S123",
+            "embeddings": [[0.1] * 512] * 8
+        }
+    ]
+    mock_get_pending_queue_items.return_value = []
+    
+    # Try to upload 3 images (8 + 3 = 11 > 10)
+    mock_files = [MagicMock(spec=UploadFile) for _ in range(3)]
+    for i, mock_file in enumerate(mock_files):
+        mock_file.filename = f"pic_{i}.jpg"
+        mock_file.read = AsyncMock(return_value=b"image_content")
+        
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", mock_files)
+        
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Cannot register 3 photos. Already registered 8 photos. Remaining quota is 2 photos."
+
+
+@pytest.mark.anyio
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.match_face_embedding")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_duplicate_face_different_student(
+    mock_upsert_user, mock_get_processor, mock_match_face, mock_get_all_embeddings, mock_get_pending_queue_items
+):
+    mock_get_all_embeddings.return_value = []
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True},
+        "face": MagicMock()
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    
+    mock_match_face.return_value = {
+        "student_id": "S456",
+        "similarity": 0.85,
+        "name": "Jane Doe",
+        "user_id": 2
+    }
+    
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+        
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "This face is already registered"
+
+
+@pytest.mark.anyio
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.match_face_embedding")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+@patch("app.services.registration_service.upload_image")
+@patch("app.services.registration_service.insert_queue_item")
+async def test_register_images_duplicate_face_same_student(
+    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_get_all_embeddings, mock_get_pending_queue_items
+):
+    mock_get_all_embeddings.return_value = []
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_upload_image.return_value = "http://storage.co/img.jpg"
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True},
+        "face": MagicMock()
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    
+    mock_match_face.return_value = {
+        "student_id": "S123",
+        "similarity": 0.95,
+        "name": "John Doe",
+        "user_id": 1
+    }
+    
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+    
+    result = await register_images("S123", "John Doe", [mock_file])
+    
+    assert result["status"] == "pending"
+    assert result["student_id"] == "S123"
+    mock_insert_queue.assert_called_once()
+
+
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_all_embeddings")
 def test_get_registration_status_completed(mock_get_all_embeddings, mock_get_user):

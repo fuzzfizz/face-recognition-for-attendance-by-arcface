@@ -9,6 +9,8 @@ from app.database import (
     get_all_embeddings,
     save_all_embeddings,
     delete_student_from_db,
+    get_pending_queue_items,
+    match_face_embedding,
 )
 from app.matcher import invalidate_cache
 
@@ -37,6 +39,33 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
+    # 1. Quota Check: count user images (already registered embeddings) + pending queue records.
+    # Limit to 10 photos per student (including already registered embeddings and pending queue records).
+    pending_items = get_pending_queue_items()
+    pending_count = sum(1 for item in pending_items if item.get("student_id") == student_id)
+
+    existing_embeddings = []
+    for record in get_all_embeddings():
+        if record.get("student_id") == student_id:
+            existing_embeddings = record.get("embeddings", [])
+            break
+    registered_count = len(existing_embeddings)
+
+    current_photos = registered_count + pending_count
+    new_photos = len(files)
+
+    if current_photos >= 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Already registered 10 photos (Quota full)"
+        )
+
+    if current_photos + new_photos > 10:
+        remaining_quota = 10 - current_photos
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot register {new_photos} photos. Already registered {current_photos} photos. Remaining quota is {remaining_quota} photos."
+        )
 
     user = upsert_user(student_id, name)
     if not user:
@@ -92,6 +121,16 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
             })
             has_failure = True
         else:
+            # 2. Duplicate Check: extract embedding and check against system
+            face_data = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
+            if face_data and "embedding" in face_data:
+                match = match_face_embedding(face_data["embedding"])
+                if match and match.get("student_id") != student_id:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This face is already registered"
+                    )
+
             results.append({
                 "filename": file.filename,
                 "passed": True,
