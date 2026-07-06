@@ -22,30 +22,30 @@ if (!file_exists(__DIR__ . '/config.php')) {
   <meta name="description" content="Face recognition attendance system dashboard — live check-in logs and student registration status.">
   <link rel="stylesheet" href="assets/style.css">
   <style>
-  /* ── Expandable Details ── */
+  /* Expandable Details */
   .details-container {
       max-height: 0;
       overflow: hidden;
       transition: max-height 0.3s ease-out;
-      background: #13151f44;
+      background: var(--bg-panel-alt);
   }
   .details-container.expanded {
       max-height: 2000px;
   }
   .details-inner {
       padding: 16px 24px;
-      border-bottom: 1px solid #2d3148;
+      border-bottom: 1px solid var(--border);
   }
   .details-arrow {
       display: inline-block;
       margin-right: 8px;
       font-size: 10px;
-      color: #64748b;
+      color: var(--text-dim);
       transition: transform 0.2s ease;
   }
   .details-arrow.expanded {
       transform: rotate(90deg);
-      color: #a78bfa;
+      color: var(--accent);
   }
 
   /* Details Tabs */
@@ -53,13 +53,13 @@ if (!file_exists(__DIR__ . '/config.php')) {
       display: flex;
       gap: 8px;
       margin-bottom: 16px;
-      border-bottom: 1px solid #1e2235;
+      border-bottom: 1px solid var(--border-light);
       padding-bottom: 8px;
   }
   .details-tab {
       background: none;
       border: none;
-      color: #64748b;
+      color: var(--text-dim);
       font-size: 12px;
       font-weight: 600;
       padding: 6px 12px;
@@ -68,12 +68,12 @@ if (!file_exists(__DIR__ . '/config.php')) {
       transition: all 0.15s;
   }
   .details-tab:hover {
-      color: #cbd5e1;
-      background: #1e2235;
+      color: var(--text-secondary);
+      background: var(--bg-inset);
   }
   .details-tab.active {
-      color: #a78bfa;
-      background: #a78bfa11;
+      color: var(--accent);
+      background: var(--accent-bg);
   }
 
   /* Tab contents */
@@ -86,24 +86,24 @@ if (!file_exists(__DIR__ . '/config.php')) {
 
   /* Checklist Styling */
   .photo-checklist-card {
-      background: #1a1d2e;
-      border: 1px solid #2d3148;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
       border-radius: 8px;
       margin-bottom: 12px;
       overflow: hidden;
   }
   .photo-checklist-header {
-      background: #13151f99;
+      background: var(--bg-panel-alt);
       padding: 8px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #2d3148;
+      border-bottom: 1px solid var(--border);
   }
   .photo-filename {
       font-family: monospace;
       font-size: 12px;
-      color: #e2e8f0;
+      color: var(--text-primary);
   }
   .status-badge--small {
       padding: 1px 6px;
@@ -137,51 +137,51 @@ if (!file_exists(__DIR__ . '/config.php')) {
       font-size: 10px;
       font-weight: bold;
   }
-  .check-passed { color: #cbd5e1; }
+  .check-passed { color: var(--text-secondary); }
   .check-passed .checklist-icon {
-      background: #22c55e22;
-      color: #22c55e;
+      background: var(--green-bg);
+      color: var(--green);
   }
-  .check-failed { color: #f87171; }
+  .check-failed { color: var(--red-text); }
   .check-failed .checklist-icon {
-      background: #ef444422;
-      color: #ef4444;
+      background: var(--red-bg);
+      color: var(--red);
   }
-  .check-skipped { color: #64748b; }
+  .check-skipped { color: var(--text-dim); }
   .check-skipped .checklist-icon {
-      background: #1e2235;
-      color: #64748b;
-      border: 1px solid #2d3148;
+      background: var(--bg-inset);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
   }
-  .check-pending { color: #f59e0b; }
+  .check-pending { color: var(--yellow); }
   .check-pending .checklist-icon {
-      background: #f59e0b22;
-      color: #f59e0b;
+      background: var(--yellow-bg);
+      color: var(--yellow);
   }
   .check-error-msg {
-      color: #f87171;
+      color: var(--red-text);
       margin-left: 4px;
       font-style: italic;
   }
   .general-checklist-error {
-      background: #ef444415;
-      border-bottom: 1px solid #ef444433;
+      background: var(--red-bg);
+      border-bottom: 1px solid var(--red-border);
       padding: 8px 16px;
-      color: #f87171;
+      color: var(--red-text);
       font-size: 12px;
   }
 
   /* Raw data */
   .raw-data-json {
-      background: #0f1117;
-      border: 1px solid #2d3148;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
       border-radius: 6px;
       padding: 12px;
       max-height: 300px;
       overflow-y: auto;
       font-family: monospace;
       font-size: 12px;
-      color: #a78bfa;
+      color: var(--accent);
   }
   </style>
 </head>
@@ -191,10 +191,14 @@ if (!file_exists(__DIR__ . '/config.php')) {
 <header class="topbar">
   <div class="topbar-logo">FaceAttend <span>Dashboard</span></div>
   <div style="display:flex;align-items:center;gap:12px">
-    <div class="admin-input-group" style="display:flex;align-items:center;gap:6px;background:#1e2235;padding:4px 10px;border-radius:6px;border:1px solid #2d3148">
-      <span style="font-size:11px;color:#a78bfa;font-weight:bold">Admin Key:</span>
-      <input type="password" id="admin-key-input" placeholder="••••••••" style="background:none;border:none;color:white;font-size:12px;width:120px;outline:none" onchange="saveAdminKey(this.value)">
+    <div class="admin-input-group" style="display:flex;align-items:center;gap:6px;background:var(--bg-inset);padding:4px 10px;border-radius:6px;border:1px solid var(--border)">
+      <span style="font-size:11px;color:var(--accent);font-weight:bold">Admin Key:</span>
+      <input type="password" id="admin-key-input" placeholder="••••••••" style="background:none;border:none;color:var(--text-primary);font-size:12px;width:120px;outline:none" onchange="saveAdminKey(this.value)">
     </div>
+    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle light/dark theme">
+      <span id="theme-icon">🌙</span>
+      <span id="theme-label" style="font-size:11px;font-weight:600">Light</span>
+    </button>
     <div class="live-badge">
       <div class="live-dot online" id="live-dot"></div>
       <span id="live-label">Live · refreshes every 5s</span>
@@ -986,12 +990,29 @@ function getAdminKey() {
   return localStorage.getItem('admin_key') || '';
 }
 
-// Populate key on page load
+// ── Theme Toggle ──
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const isDark = theme === 'dark';
+  document.getElementById('theme-icon').textContent  = isDark ? '🌙' : '☀️';
+  document.getElementById('theme-label').textContent = isDark ? 'Light' : 'Dark';
+  localStorage.setItem('theme', theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// Populate key and theme on page load
 document.addEventListener('DOMContentLoaded', () => {
   const key = getAdminKey();
   if (key) {
     document.getElementById('admin-key-input').value = key;
   }
+  // Restore saved theme (default: dark)
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  applyTheme(savedTheme);
 });
 </script>
 
