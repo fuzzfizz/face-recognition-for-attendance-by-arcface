@@ -147,19 +147,7 @@ class TestDeleteStudentFromSupabase:
     def test_delete_student_success(self, mock_sb):
         from app.supabase_client import delete_student_from_supabase, SUPABASE_STORAGE_BUCKET
         
-        # Mock database responses
-        # First query: users select id
-        mock_user_query = MagicMock()
-        mock_user_query.eq.return_value.execute.return_value.data = [{"id": 100}]
-        
-        # Second query: user_images select image_path
-        mock_img_query = MagicMock()
-        mock_img_query.eq.return_value.execute.return_value.data = [
-            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img1.jpg"},
-            {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img2.jpg"}
-        ]
-        
-        # Third query: registration_queue select image_path
+        # Mock database response for registration_queue select image_path
         mock_queue_query = MagicMock()
         mock_queue_query.eq.return_value.execute.return_value.data = [
             {"image_path": "https://supabase.co/storage/v1/object/public/bucket/img3.jpg"}
@@ -180,12 +168,7 @@ class TestDeleteStudentFromSupabase:
         def table_mock_side_effect(table_name):
             if table_name == "users":
                 table_obj = MagicMock()
-                table_obj.select.return_value = mock_user_query
                 table_obj.delete.return_value = mock_delete_query1
-                return table_obj
-            elif table_name == "user_images":
-                table_obj = MagicMock()
-                table_obj.select.return_value = mock_img_query
                 return table_obj
             elif table_name == "registration_queue":
                 table_obj = MagicMock()
@@ -204,9 +187,8 @@ class TestDeleteStudentFromSupabase:
         
         # Verify storage removal
         mock_sb.storage.from_.assert_called_with(SUPABASE_STORAGE_BUCKET)
-        # Files should be img1.jpg, img2.jpg, img3.jpg in some order
         removed_files = mock_bucket.remove.call_args[0][0]
-        assert set(removed_files) == {"img1.jpg", "img2.jpg", "img3.jpg"}
+        assert set(removed_files) == {"img3.jpg"}
 
         # Verify DB deletes
         mock_delete_query1.eq.assert_called_with("student_id", "S001")
@@ -215,10 +197,7 @@ class TestDeleteStudentFromSupabase:
     def test_delete_student_no_user(self, mock_sb):
         from app.supabase_client import delete_student_from_supabase
         
-        # Mock database response where user doesn't exist
-        mock_user_query = MagicMock()
-        mock_user_query.eq.return_value.execute.return_value.data = []
-
+        # Mock database response where queue doesn't exist
         mock_queue_select = MagicMock()
         mock_queue_select.eq.return_value.execute.return_value.data = []
 
@@ -231,7 +210,6 @@ class TestDeleteStudentFromSupabase:
         def table_mock_side_effect(table_name):
             if table_name == "users":
                 table_obj = MagicMock()
-                table_obj.select.return_value = mock_user_query
                 table_obj.delete.return_value = mock_delete_query1
                 return table_obj
             elif table_name == "registration_queue":
@@ -246,7 +224,7 @@ class TestDeleteStudentFromSupabase:
         res = delete_student_from_supabase("S999")
         assert res is True
         
-        # Storage should NOT be called since user and queue didn't exist (no files)
+        # Storage should NOT be called since no files existed
         mock_sb.storage.from_.assert_not_called()
 
         # DB deletes should still be called to ensure any remaining records are cleared
@@ -255,10 +233,6 @@ class TestDeleteStudentFromSupabase:
 
     def test_delete_student_queue_only(self, mock_sb):
         from app.supabase_client import delete_student_from_supabase, SUPABASE_STORAGE_BUCKET
-        
-        # Mock database response where user doesn't exist
-        mock_user_query = MagicMock()
-        mock_user_query.eq.return_value.execute.return_value.data = []
         
         # registration_queue has pending items
         mock_queue_select = MagicMock()
@@ -278,7 +252,6 @@ class TestDeleteStudentFromSupabase:
         def table_mock_side_effect(table_name):
             if table_name == "users":
                 table_obj = MagicMock()
-                table_obj.select.return_value = mock_user_query
                 table_obj.delete.return_value = mock_delete_query1
                 return table_obj
             elif table_name == "registration_queue":
@@ -301,6 +274,3 @@ class TestDeleteStudentFromSupabase:
         # DB deletes should still be called to ensure any remaining records are cleared
         mock_delete_query1.eq.assert_called_with("student_id", "S777")
         mock_delete_query2.eq.assert_called_with("student_id", "S777")
-
-
-

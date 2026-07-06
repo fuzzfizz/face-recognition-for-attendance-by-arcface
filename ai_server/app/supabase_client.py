@@ -236,14 +236,8 @@ def delete_student_from_supabase(student_id: str) -> bool:
         return False
     try:
         sb = get_supabase()
-        # 1. Fetch paths from user_images and registration_queue to delete files
+        # 1. Fetch paths from registration_queue to delete files
         paths = []
-        user_res = sb.table("users").select("id").eq("student_id", student_id).execute()
-        if user_res.data:
-            user_id = user_res.data[0]["id"]
-            img_res = sb.table("user_images").select("image_path").eq("user_id", user_id).execute()
-            paths.extend([row["image_path"] for row in img_res.data if row.get("image_path")])
-        
         q_res = sb.table("registration_queue").select("image_path").eq("student_id", student_id).execute()
         paths.extend([row["image_path"] for row in q_res.data if row.get("image_path")])
 
