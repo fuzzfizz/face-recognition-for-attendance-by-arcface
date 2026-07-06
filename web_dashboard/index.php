@@ -190,9 +190,15 @@ if (!file_exists(__DIR__ . '/config.php')) {
 <!-- Top Bar -->
 <header class="topbar">
   <div class="topbar-logo">FaceAttend <span>Dashboard</span></div>
-  <div class="live-badge">
-    <div class="live-dot online" id="live-dot"></div>
-    <span id="live-label">Live · refreshes every 5s</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="admin-input-group" style="display:flex;align-items:center;gap:6px;background:#1e2235;padding:4px 10px;border-radius:6px;border:1px solid #2d3148">
+      <span style="font-size:11px;color:#a78bfa;font-weight:bold">Admin Key:</span>
+      <input type="password" id="admin-key-input" placeholder="••••••••" style="background:none;border:none;color:white;font-size:12px;width:120px;outline:none" onchange="saveAdminKey(this.value)">
+    </div>
+    <div class="live-badge">
+      <div class="live-dot online" id="live-dot"></div>
+      <span id="live-label">Live · refreshes every 5s</span>
+    </div>
   </div>
 </header>
 
@@ -670,6 +676,14 @@ async function loadQueue() {
 }
 
 async function triggerForceTraining() {
+  let adminKey = getAdminKey();
+  if (!adminKey) {
+    adminKey = prompt('Please enter the Admin API Key to trigger training:');
+    if (!adminKey) return;
+    saveAdminKey(adminKey);
+    document.getElementById('admin-key-input').value = adminKey;
+  }
+
   if (!confirm('This will process all pending registrations in the queue immediately. Proceed?')) {
     return;
   }
@@ -680,8 +694,16 @@ async function triggerForceTraining() {
   btn.disabled = true;
   
   try {
-    const res = await fetch('api/train.php', { method: 'POST' });
+    const res = await fetch('api/train.php', { 
+      method: 'POST',
+      headers: { 'X-Admin-Key': adminKey }
+    });
     const d = await res.json();
+    if (res.status === 401) {
+      localStorage.removeItem('admin_key');
+      document.getElementById('admin-key-input').value = '';
+      throw new Error('Unauthorized: Invalid Admin Key');
+    }
     if (!res.ok) throw new Error(d.detail || d.error || 'Server error');
     
     alert('Training completed successfully! Processed students: ' + (d.processed_students?.join(', ') || 'None'));
@@ -696,6 +718,14 @@ async function triggerForceTraining() {
 }
 
 async function deleteStudent(studentId) {
+  let adminKey = getAdminKey();
+  if (!adminKey) {
+    adminKey = prompt('Please enter the Admin API Key to delete this student:');
+    if (!adminKey) return;
+    saveAdminKey(adminKey);
+    document.getElementById('admin-key-input').value = adminKey;
+  }
+
   if (!confirm(`Are you sure you want to permanently delete student ID: ${studentId}?\nThis will delete their photos and face recognition data but keep their check-in log history.`)) {
     return;
   }
@@ -703,10 +733,18 @@ async function deleteStudent(studentId) {
   try {
     const res = await fetch('api/delete_student.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey
+      },
       body: JSON.stringify({ student_id: studentId })
     });
     const d = await res.json();
+    if (res.status === 401) {
+      localStorage.removeItem('admin_key');
+      document.getElementById('admin-key-input').value = '';
+      throw new Error('Unauthorized: Invalid Admin Key');
+    }
     if (!res.ok) throw new Error(d.error || d.detail || 'Delete failed');
     
     alert(`Student ${studentId} has been successfully deleted.`);
@@ -930,6 +968,22 @@ document.getElementById('filter-device').addEventListener('change', () => {
 loadStats();
 loadAttendance(1);
 startPolling();
+
+function saveAdminKey(val) {
+  localStorage.setItem('admin_key', val);
+}
+
+function getAdminKey() {
+  return localStorage.getItem('admin_key') || '';
+}
+
+// Populate key on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const key = getAdminKey();
+  if (key) {
+    document.getElementById('admin-key-input').value = key;
+  }
+});
 </script>
 
 </body>
