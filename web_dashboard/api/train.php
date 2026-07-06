@@ -1,14 +1,14 @@
 <?php
 require_once __DIR__ . '/../config.php';
 
+header('Content-Type: application/json');
+
 $clientKey = $_SERVER['HTTP_X_ADMIN_KEY'] ?? '';
-if ($clientKey !== ADMIN_API_KEY) {
+if (!hash_equals(ADMIN_API_KEY, $clientKey)) {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized: Invalid Admin Key']);
     exit;
 }
-
-header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
