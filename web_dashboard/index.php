@@ -949,10 +949,19 @@ function renderChecklistsHtml(items) {
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
+    if (document.hidden) return; // pause when tab is not visible
     loadStats();
     if (currentTab === 'attendance') loadAttendance();
   }, 5000);
 }
+
+// Resume polling immediately when user returns to this tab
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    loadStats();
+    if (currentTab === 'attendance') loadAttendance();
+  }
+});
 
 // ── Init ──
 document.getElementById('filter-date').addEventListener('change', () => {
