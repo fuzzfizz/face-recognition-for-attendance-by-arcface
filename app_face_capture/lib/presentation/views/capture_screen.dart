@@ -91,6 +91,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   }
 
   Future<void> _capturePhoto(CaptureViewModel viewModel) async {
+    if (_isPreparing) return;
     if (_cameraController == null ||
         !_cameraController!.value.isInitialized ||
         _isTakingPicture)
@@ -132,6 +133,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
   String _getPromptText(int count, int total) {
     if (_isPreparing) {
       return 'Get ready...';
+    }
+    if (count >= total) {
+      return 'All photos captured!';
     }
     return 'Capturing photo ${count + 1} of $total';
   }
