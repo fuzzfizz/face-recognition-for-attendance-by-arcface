@@ -228,46 +228,48 @@ class _CaptureScreenState extends State<CaptureScreen> {
                                   ),
                                 ),
                               ),
-                            Positioned(
-                              top: 16,
-                              left: 16,
-                              right: 16,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.7),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white24),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'INSTRUCTION',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.5,
+                            if (!_isPreparing)
+                              Positioned(
+                                top: 16,
+                                left: 16,
+                                right: 16,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.white24),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'INSTRUCTION',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade400,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _getPromptText(viewModel.capturedCount, viewModel.requiredPhotos),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _getPromptText(viewModel.capturedCount, viewModel.requiredPhotos),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
+
                           ],
                         )
                       : const Center(
