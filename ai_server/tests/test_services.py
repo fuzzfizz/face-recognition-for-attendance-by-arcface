@@ -35,11 +35,7 @@ async def test_register_images_success(
         "error_message": None,
         "results": {
             "face_detected": True,
-            "single_face": True,
-            "blur_passed": True,
-            "distance_passed": True,
-            "orientation_passed": True,
-            "obstruction_passed": True
+            "single_face": True
         }
     }
     mock_get_processor.return_value = mock_processor
@@ -93,14 +89,10 @@ async def test_register_images_no_face(
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
         "failed_step": 1,
-        "error_message": "No face detected",
+        "error_message": "Face not found, please retake",
         "results": {
             "face_detected": False,
-            "single_face": False,
-            "blur_passed": False,
-            "distance_passed": False,
-            "orientation_passed": False,
-            "obstruction_passed": False
+            "single_face": False
         }
     }
     mock_get_processor.return_value = mock_processor
@@ -114,7 +106,7 @@ async def test_register_images_no_face(
     
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["message"] == "Some photos failed face verification."
-    assert exc_info.value.detail["results"][0]["error"] == "No face detected"
+    assert exc_info.value.detail["results"][0]["error"] == "Face not found, please retake"
 
 @pytest.mark.anyio
 @patch("app.face_processor.get_face_processor")
@@ -228,11 +220,7 @@ def test_verify_face_match(mock_insert_log, mock_match, mock_decode, mock_get_pr
         "passed": True,
         "results": {
             "face_detected": True,
-            "single_face": True,
-            "blur_passed": True,
-            "distance_passed": True,
-            "orientation_passed": True,
-            "obstruction_passed": True
+            "single_face": True
         }
     }
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
@@ -264,11 +252,7 @@ def test_verify_face_database_mismatch(mock_insert_log, mock_match, mock_decode,
         "passed": True,
         "results": {
             "face_detected": True,
-            "single_face": True,
-            "blur_passed": True,
-            "distance_passed": True,
-            "orientation_passed": True,
-            "obstruction_passed": True
+            "single_face": True
         }
     }
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
@@ -281,10 +265,11 @@ def test_verify_face_database_mismatch(mock_insert_log, mock_match, mock_decode,
     mock_decode.assert_called_once_with(b"image_bytes")
     mock_match.assert_called_once_with([0.1] * 512)
     mock_insert_log.assert_called_once_with(
-        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="No matching face found in database"
+        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="Employee data not found"
     )
     assert result["match"] is False
     assert result["student_id"] is None
+    assert result["message"] == "Employee data not found"
     assert result["validation_checklist"]["database_match"] is False
 
 
@@ -296,14 +281,11 @@ def test_verify_face_quality_failure(mock_insert_log, mock_decode, mock_get_proc
     mock_processor = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
-        "error_message": "Image is blurry",
+        "failed_step": 1,
+        "error_message": "Please look at the camera",
         "results": {
-            "face_detected": True,
-            "single_face": True,
-            "blur_passed": False,
-            "distance_passed": False,
-            "orientation_passed": False,
-            "obstruction_passed": False
+            "face_detected": False,
+            "single_face": False
         }
     }
     mock_get_processor.return_value = mock_processor
@@ -311,10 +293,11 @@ def test_verify_face_quality_failure(mock_insert_log, mock_decode, mock_get_proc
     result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
 
     mock_insert_log.assert_called_once_with(
-        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="Image is blurry"
+        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="Please look at the camera"
     )
     assert result["match"] is False
     assert result["student_id"] is None
+    assert result["message"] == "Please look at the camera"
     assert result["validation_checklist"]["database_match"] is False
 
 
@@ -327,6 +310,13 @@ def test_verify_face_cooldown_active(mock_insert, mock_get_latest, mock_match, m
     import datetime
     mock_decode.return_value = MagicMock()
     mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True
+        }
+    }
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
     mock_get_processor.return_value = mock_processor
     mock_match.return_value = {"student_id": "S123", "similarity": 0.85, "user_id": 1}
@@ -351,11 +341,7 @@ def test_verify_face_extraction_failure(mock_insert_log, mock_decode, mock_get_p
         "passed": True,
         "results": {
             "face_detected": True,
-            "single_face": True,
-            "blur_passed": True,
-            "distance_passed": True,
-            "orientation_passed": True,
-            "obstruction_passed": True
+            "single_face": True
         }
     }
     mock_processor.extract_face_embedding.return_value = None
@@ -364,11 +350,11 @@ def test_verify_face_extraction_failure(mock_insert_log, mock_decode, mock_get_p
     result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST")
 
     mock_insert_log.assert_called_once_with(
-        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="No face detected during embedding extraction"
+        student_id=None, similarity_score=0.0, device_id="ESP-TEST", error_message="Please look at the camera"
     )
     assert result["match"] is False
     assert result["student_id"] is None
-    assert result["message"] == "No face detected during embedding extraction"
+    assert result["message"] == "Please look at the camera"
     assert result["validation_checklist"]["database_match"] is False
 
 
@@ -536,9 +522,12 @@ def test_process_pending_queue_validation_failure(
     mock_processor.decode_image_path.return_value = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
-        "failed_step": 3,
-        "error_message": "Image is blurry",
-        "results": {}
+        "failed_step": 1,
+        "error_message": "Face not found, please retake",
+        "results": {
+            "face_detected": False,
+            "single_face": False
+        }
     }
     mock_get_processor.return_value = mock_processor
     mock_get_all.return_value = []
@@ -548,7 +537,7 @@ def test_process_pending_queue_validation_failure(
     mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
     mock_processor.validate_image_quality.assert_called_once()
     mock_processor.extract_face_embedding.assert_not_called()
-    mock_update_status.assert_called_once_with(1, "failed", "Image is blurry")
+    mock_update_status.assert_called_once_with(1, "failed", "Face not found, please retake")
     mock_save.assert_not_called()
     mock_invalidate.assert_not_called()
     assert result["message"] == "Training completed for batch"

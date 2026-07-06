@@ -63,7 +63,7 @@ def verify_face(
     face_data = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
     if not face_data:
         # No face detected — log with no match
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="No face detected during embedding extraction")
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="Please look at the camera")
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
@@ -71,7 +71,7 @@ def verify_face(
             "student_id": None,
             "similarity_score": 0.0,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": "No face detected during embedding extraction",
+            "message": "Please look at the camera",
             "validation_checklist": checklist
         }
 
@@ -132,7 +132,7 @@ def verify_face(
             "validation_checklist": checklist
         }
     else:
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="No matching face found in database")
+        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="Employee data not found")
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
@@ -140,6 +140,6 @@ def verify_face(
             "student_id": None,
             "similarity_score": 0.0,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": None,
+            "message": "Employee data not found",
             "validation_checklist": checklist
         }

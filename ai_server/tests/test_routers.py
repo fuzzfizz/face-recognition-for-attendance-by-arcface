@@ -139,10 +139,6 @@ def test_verify_route(mock_verify):
         "validation_checklist": {
             "face_detected": True,
             "single_face": True,
-            "blur_passed": True,
-            "distance_passed": True,
-            "orientation_passed": True,
-            "obstruction_passed": True,
             "database_match": True
         }
     }
@@ -242,15 +238,11 @@ def test_verify_route_validation_failure(mock_insert_log, mock_get_processor, mo
     mock_processor = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
-        "failed_step": 3,
-        "error_message": "Image is blurry / motion detected (variance: 50.0 < 100)",
+        "failed_step": 1,
+        "error_message": "Please look at the camera",
         "results": {
-            "face_detected": True,
-            "single_face": True,
-            "blur_passed": False,
-            "distance_passed": False,
-            "orientation_passed": False,
-            "obstruction_passed": False
+            "face_detected": False,
+            "single_face": False
         }
     }
     mock_get_processor.return_value = mock_processor
@@ -266,15 +258,15 @@ def test_verify_route_validation_failure(mock_insert_log, mock_get_processor, mo
     assert res_json["match"] is False
     assert res_json["student_id"] is None
     assert res_json["similarity_score"] == 0.0
-    assert "Image is blurry" in res_json["message"]
-    assert res_json["validation_checklist"]["blur_passed"] is False
+    assert "Please look at the camera" in res_json["message"]
+    assert res_json["validation_checklist"]["face_detected"] is False
     assert res_json["validation_checklist"]["database_match"] is False
     
     mock_insert_log.assert_called_once_with(
         student_id=None,
         similarity_score=0.0,
         device_id="ESP-TEST-01",
-        error_message="Image is blurry / motion detected (variance: 50.0 < 100)"
+        error_message="Please look at the camera"
     )
 
 
@@ -287,15 +279,11 @@ def test_register_route_validation_failure(mock_upsert, mock_get_processor):
     mock_processor.decode_image.return_value = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
-        "failed_step": 3,
-        "error_message": "Image is blurry",
+        "failed_step": 1,
+        "error_message": "Face not found, please retake",
         "results": {
-            "face_detected": True,
-            "single_face": True,
-            "blur_passed": False,
-            "distance_passed": False,
-            "orientation_passed": False,
-            "obstruction_passed": False
+            "face_detected": False,
+            "single_face": False
         }
     }
     mock_get_processor.return_value = mock_processor
@@ -309,7 +297,7 @@ def test_register_route_validation_failure(mock_upsert, mock_get_processor):
     assert response.status_code == 400
     res_json = response.json()
     assert "Some photos failed face verification" in res_json["detail"]["message"]
-    assert res_json["detail"]["results"][0]["error"] == "Image is blurry"
+    assert res_json["detail"]["results"][0]["error"] == "Face not found, please retake"
 
 
 @patch("app.face_processor.get_face_processor")

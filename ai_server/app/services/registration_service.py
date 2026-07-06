@@ -62,10 +62,6 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
                 "validation_checklist": {
                     "face_detected": False,
                     "single_face": False,
-                    "blur_passed": False,
-                    "distance_passed": False,
-                    "orientation_passed": False,
-                    "obstruction_passed": False,
                     "database_match": None
                 }
             })
@@ -80,10 +76,6 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
                 "validation_checklist": {
                     "face_detected": False,
                     "single_face": False,
-                    "blur_passed": False,
-                    "distance_passed": False,
-                    "orientation_passed": False,
-                    "obstruction_passed": False,
                     "database_match": None
                 }
             })

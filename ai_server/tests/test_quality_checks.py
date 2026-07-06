@@ -35,14 +35,14 @@ def test_quality_checks_invalid_image():
     res = processor.validate_image_quality(None)
     assert res["passed"] is False
     assert res["failed_step"] == 1
-    assert "Invalid image" in res["error_message"]
+    assert "Please look at the camera" in res["error_message"]
 
     # Empty image
     empty_img = np.zeros((0, 0, 3), dtype=np.uint8)
     res = processor.validate_image_quality(empty_img)
     assert res["passed"] is False
     assert res["failed_step"] == 1
-    assert "Invalid image" in res["error_message"]
+    assert "Please look at the camera" in res["error_message"]
 
 def test_quality_checks_no_face():
     processor = get_face_processor()
@@ -51,7 +51,7 @@ def test_quality_checks_no_face():
         res = processor.validate_image_quality(blank_img)
     assert res["passed"] is False
     assert res["failed_step"] == 1
-    assert "No face detected" in res["error_message"]
+    assert "Please look at the camera" in res["error_message"]
 
 def test_quality_checks_multiple_faces():
     processor = get_face_processor()
@@ -61,38 +61,33 @@ def test_quality_checks_multiple_faces():
         res = processor.validate_image_quality(blank_img)
     assert res["passed"] is False
     assert res["failed_step"] == 2
-    assert "Multiple faces detected" in res["error_message"]
+    assert "One person at a time" in res["error_message"]
 
-def test_quality_checks_blur_failed():
+def test_quality_checks_blur_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
     faces = [DummyFace()]
     with patch.object(processor.app, "get", return_value=faces):
-        # Force low blur variance
+        # Even with low blur variance, the check should pass
         with patch("app.face_processor.calculate_blur_variance", return_value=50.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 3
-    assert "blurry" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_distance_failed():
+def test_quality_checks_distance_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
-    # Face too small/far: 100x100 box (width = 200 - 100, height = 200 - 100)
+    # Face too small/far: 100x100 box
     faces = [DummyFace(bbox=[100, 100, 200, 200])]
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 4
-    assert "too far or too small" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_orientation_tilted():
+def test_quality_checks_orientation_tilted_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
-    # Roll tilt: right eye is significantly higher than left eye
-    # dy = 180 - 120 = 60, dx = 180 - 120 = 60
-    # roll_angle = arctan(60/60) = 45 degrees (> 20)
     tilted_kps = [
         [120, 120],  # left eye
         [180, 180],  # right eye
@@ -104,17 +99,12 @@ def test_quality_checks_orientation_tilted():
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 5
-    assert "not straight (tilted" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_orientation_profile():
+def test_quality_checks_orientation_profile_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
-    # Profile view: nose is very close to left eye
-    # left_dist = abs(121 - 120) = 1
-    # right_dist = abs(180 - 121) = 59
-    # yaw_ratio = 1 / 59 = 0.016 (< 0.5)
     profile_kps = [
         [120, 150],  # left eye
         [180, 150],  # right eye
@@ -126,20 +116,18 @@ def test_quality_checks_orientation_profile():
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 5
-    assert "not straight (turned sideways" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_obstruction_failed():
+def test_quality_checks_obstruction_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
     faces = [DummyFace(det_score=0.5)]
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 6
-    assert "Obstructions detected" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
 def test_quality_checks_all_passed():
     processor = get_face_processor()
@@ -153,10 +141,10 @@ def test_quality_checks_all_passed():
     assert res["error_message"] is None
     assert res["results"]["face_detected"] is True
     assert res["results"]["single_face"] is True
-    assert res["results"]["blur_passed"] is True
-    assert res["results"]["distance_passed"] is True
-    assert res["results"]["orientation_passed"] is True
-    assert res["results"]["obstruction_passed"] is True
+    assert "blur_passed" not in res["results"]
+    assert "distance_passed" not in res["results"]
+    assert "orientation_passed" not in res["results"]
+    assert "obstruction_passed" not in res["results"]
 
 def test_blur_variance_calculation_grayscale():
     # 2D single-channel grayscale image (zero variance)
@@ -167,7 +155,7 @@ def test_blur_variance_calculation_grayscale():
     img_gray_random = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
     assert calculate_blur_variance(img_gray_random) > 0.0
 
-def test_quality_checks_orientation_pitch_down():
+def test_quality_checks_orientation_pitch_down_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
     pitch_down_kps = [
@@ -181,11 +169,10 @@ def test_quality_checks_orientation_pitch_down():
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 5
-    assert "tilted up/down: pitch" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_orientation_pitch_up():
+def test_quality_checks_orientation_pitch_up_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
     pitch_up_kps = [
@@ -199,11 +186,10 @@ def test_quality_checks_orientation_pitch_up():
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 5
-    assert "tilted up/down: pitch" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None
 
-def test_quality_checks_orientation_invalid_vertical():
+def test_quality_checks_orientation_invalid_vertical_ignored():
     processor = get_face_processor()
     blank_img = np.zeros((480, 640, 3), dtype=np.uint8)
     invalid_vertical_kps = [
@@ -217,6 +203,5 @@ def test_quality_checks_orientation_invalid_vertical():
     with patch.object(processor.app, "get", return_value=faces):
         with patch("app.face_processor.calculate_blur_variance", return_value=150.0):
             res = processor.validate_image_quality(blank_img)
-    assert res["passed"] is False
-    assert res["failed_step"] == 5
-    assert "invalid vertical features" in res["error_message"]
+    assert res["passed"] is True
+    assert res["failed_step"] is None

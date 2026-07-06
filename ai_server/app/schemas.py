@@ -10,10 +10,6 @@ class ImageUploadBase64(BaseModel):
 class ValidationChecklist(BaseModel):
     face_detected: bool
     single_face: bool
-    blur_passed: bool
-    distance_passed: bool
-    orientation_passed: bool
-    obstruction_passed: bool
     database_match: Optional[bool] = None
 
 class RegisterResponse(BaseModel):
