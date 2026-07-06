@@ -52,8 +52,14 @@ def process_pending_queue(limit: int = 50) -> dict:
 
                 result = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
                 if result and "embedding" in result:
-                    new_embeddings.append(result["embedding"])
-                    all_item_statuses.append((item["id"], "completed", None))
+                    # Check for duplicate face matching a different student
+                    from app.matcher import match_face
+                    match = match_face(result["embedding"])
+                    if match and match["student_id"] != student_id:
+                        all_item_statuses.append((item["id"], "failed", "This face is already registered"))
+                    else:
+                        new_embeddings.append(result["embedding"])
+                        all_item_statuses.append((item["id"], "completed", None))
                 else:
                     all_item_statuses.append((item["id"], "failed", "No face detected"))
 

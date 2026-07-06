@@ -320,3 +320,69 @@ def test_register_route_empty_file(mock_upsert, mock_get_processor):
     assert res_json["detail"]["results"][0]["error"] == "Empty upload file"
     assert res_json["detail"]["results"][0]["validation_checklist"]["database_match"] is None
 
+
+@patch("app.services.registration_service.register_images")
+def test_register_route_quota_full(mock_register):
+    from fastapi import HTTPException
+    mock_register.side_effect = HTTPException(
+        status_code=400,
+        detail={
+            "message": "Already registered 10 photos (Quota full)",
+            "results": []
+        }
+    )
+    response = client.post(
+        "/register",
+        data={"student_id": "S001"},
+        files={"files": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "message": "Already registered 10 photos (Quota full)",
+        "results": []
+    }
+
+
+@patch("app.services.registration_service.register_images")
+def test_register_route_quota_partial(mock_register):
+    from fastapi import HTTPException
+    mock_register.side_effect = HTTPException(
+        status_code=400,
+        detail={
+            "message": "Cannot register 3 photos. Already registered 8 photos. Remaining quota is 2 photos.",
+            "results": []
+        }
+    )
+    response = client.post(
+        "/register",
+        data={"student_id": "S001"},
+        files={"files": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "message": "Cannot register 3 photos. Already registered 8 photos. Remaining quota is 2 photos.",
+        "results": []
+    }
+
+
+@patch("app.services.registration_service.register_images")
+def test_register_route_duplicate_face(mock_register):
+    from fastapi import HTTPException
+    mock_register.side_effect = HTTPException(
+        status_code=400,
+        detail={
+            "message": "This face is already registered",
+            "results": []
+        }
+    )
+    response = client.post(
+        "/register",
+        data={"student_id": "S001"},
+        files={"files": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "message": "This face is already registered",
+        "results": []
+    }
+

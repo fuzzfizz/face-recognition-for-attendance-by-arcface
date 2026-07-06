@@ -196,7 +196,10 @@ async def test_register_images_quota_already_full(
         await register_images("S123", "John Doe", [mock_file])
         
     assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "Already registered 10 photos (Quota full)"
+    assert exc_info.value.detail == {
+        "message": "Already registered 10 photos (Quota full)",
+        "results": []
+    }
 
 
 @pytest.mark.anyio
@@ -226,7 +229,10 @@ async def test_register_images_quota_exceeded_partial(
         await register_images("S123", "John Doe", mock_files)
         
     assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "Cannot register 3 photos. Already registered 8 photos. Remaining quota is 2 photos."
+    assert exc_info.value.detail == {
+        "message": "Cannot register 3 photos. Already registered 8 photos. Remaining quota is 2 photos.",
+        "results": []
+    }
 
 
 @pytest.mark.anyio
@@ -267,7 +273,10 @@ async def test_register_images_duplicate_face_different_student(
         await register_images("S123", "John Doe", [mock_file])
         
     assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "This face is already registered"
+    assert exc_info.value.detail == {
+        "message": "This face is already registered",
+        "results": []
+    }
 
 
 @pytest.mark.anyio
@@ -720,6 +729,55 @@ def test_process_pending_queue_validation_failure(
     mock_processor.validate_image_quality.assert_called_once()
     mock_processor.extract_face_embedding.assert_not_called()
     mock_update_status.assert_called_once_with(1, "failed", "Face not found, please retake")
+    mock_save.assert_not_called()
+    mock_invalidate.assert_not_called()
+    assert result["message"] == "Training completed for batch"
+    assert "S123" not in result["processed_students"]
+
+
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+@patch("app.matcher.match_face")
+def test_process_pending_queue_duplicate_face(
+    mock_match_face, mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
+):
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"}
+    ]
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True
+        },
+        "face": MagicMock()
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    mock_get_all.return_value = []
+
+    # Mock matching a different student_id
+    mock_match_face.return_value = {
+        "student_id": "S456",
+        "name": "Jane Doe",
+        "user_id": 2,
+        "similarity": 0.85
+    }
+
+    result = process_pending_queue()
+
+    mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
+    mock_processor.validate_image_quality.assert_called_once()
+    mock_processor.extract_face_embedding.assert_called_once()
+    mock_match_face.assert_called_once_with([0.1] * 512)
+    mock_update_status.assert_called_once_with(1, "failed", "This face is already registered")
     mock_save.assert_not_called()
     mock_invalidate.assert_not_called()
     assert result["message"] == "Training completed for batch"

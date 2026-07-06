@@ -49,22 +49,24 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
         if record.get("student_id") == student_id:
             existing_embeddings = record.get("embeddings", [])
             break
-    registered_count = len(existing_embeddings)
+    existing_count = len(existing_embeddings)
 
-    current_photos = registered_count + pending_count
-    new_photos = len(files)
-
-    if current_photos >= 10:
+    if existing_count + pending_count >= 10:
         raise HTTPException(
-            status_code=400,
-            detail="Already registered 10 photos (Quota full)"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Already registered 10 photos (Quota full)",
+                "results": []
+            }
         )
 
-    if current_photos + new_photos > 10:
-        remaining_quota = 10 - current_photos
+    if existing_count + pending_count + len(files) > 10:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot register {new_photos} photos. Already registered {current_photos} photos. Remaining quota is {remaining_quota} photos."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Cannot register {len(files)} photos. Already registered {existing_count + pending_count} photos. Remaining quota is {10 - (existing_count + pending_count)} photos.",
+                "results": []
+            }
         )
 
     user = upsert_user(student_id, name)
@@ -132,8 +134,11 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
                 match = match_face_embedding(face_data["embedding"])
                 if match and match.get("student_id") != student_id:
                     raise HTTPException(
-                        status_code=400,
-                        detail="This face is already registered"
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "message": "This face is already registered",
+                            "results": []
+                        }
                     )
 
             results.append({
