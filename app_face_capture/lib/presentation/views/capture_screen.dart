@@ -44,7 +44,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        if (mounted) setState(() => _isInitializing = false);
+        if (mounted) setState(() {
+          _isInitializing = false;
+          _isPreparing = false;
+        });
         return;
       }
 
@@ -64,6 +67,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       }
     } catch (e) {
       debugPrint('Camera init error: $e');
+      if (mounted) setState(() => _isPreparing = false);
     } finally {
       if (mounted) setState(() => _isInitializing = false);
     }
