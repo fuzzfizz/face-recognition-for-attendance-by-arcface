@@ -777,11 +777,8 @@ function parseValidationChecks(item) {
   const checks = [
     { key: 'face_detected', label: 'Face Detection' },
     { key: 'single_face', label: 'Single Face Check' },
-    { key: 'blur_passed', label: 'Blur Check' },
-    { key: 'distance_passed', label: 'Distance (Size) Check' },
-    { key: 'orientation_passed', label: 'Orientation (Pose) Check' },
-    { key: 'obstruction_passed', label: 'Obstruction Check' },
-    { key: 'database_match', label: 'Database Match Check' }
+    { key: 'duplicate_check', label: 'Duplicate Check' },
+    { key: 'quota_check', label: 'Quota Check' }
   ];
 
   let results = {};
@@ -793,18 +790,15 @@ function parseValidationChecks(item) {
     let failedStep = -1;
     let failReason = errMsg;
     
-    if (errMsg.includes('No face') || errMsg.includes('Invalid image')) {
+    const lowerErr = errMsg.toLowerCase();
+    if (lowerErr.includes('please look at the camera') || lowerErr.includes('face not found') || lowerErr.includes('invalid image')) {
       failedStep = 1;
-    } else if (errMsg.includes('Multiple faces')) {
+    } else if (lowerErr.includes('one person at a time') || lowerErr.includes('multiple faces')) {
       failedStep = 2;
-    } else if (errMsg.includes('blurry') || errMsg.includes('motion') || errMsg.includes('variance')) {
+    } else if (lowerErr.includes('already registered')) {
       failedStep = 3;
-    } else if (errMsg.includes('too far') || errMsg.includes('too small') || errMsg.includes('size:')) {
+    } else if (lowerErr.includes('quota')) {
       failedStep = 4;
-    } else if (errMsg.includes('not straight') || errMsg.includes('profile') || errMsg.includes('sideways') || errMsg.includes('tilted')) {
-      failedStep = 5;
-    } else if (errMsg.includes('Obstruction') || errMsg.includes('confidence:')) {
-      failedStep = 6;
     }
     
     checks.forEach((c, idx) => {
@@ -820,9 +814,6 @@ function parseValidationChecks(item) {
       }
     });
   }
-
-  // Database Match is N/A for Registration Queue
-  results['database_match'] = { status: 'none' };
 
   return results;
 }
@@ -863,11 +854,8 @@ function renderChecklistsHtml(items) {
       const labels = {
         face_detected: 'Face Detection',
         single_face: 'Single Face Check',
-        blur_passed: 'Blur Check',
-        distance_passed: 'Distance (Size) Check',
-        orientation_passed: 'Orientation (Pose) Check',
-        obstruction_passed: 'Obstruction Check',
-        database_match: 'Database Match (N/A for Registration)'
+        duplicate_check: 'Duplicate Check',
+        quota_check: 'Quota Check'
       };
       const label = labels[key] || key;
       
@@ -886,21 +874,14 @@ function renderChecklistsHtml(items) {
     const hasError = item.error_message && item.error_message.trim().length > 0;
     if (hasError) {
       const errMsg = item.error_message;
-      const isQualityCheckError = errMsg.includes('No face') || 
-                                  errMsg.includes('Invalid image') ||
-                                  errMsg.includes('Multiple faces') ||
-                                  errMsg.includes('blurry') ||
-                                  errMsg.includes('motion') ||
-                                  errMsg.includes('variance') ||
-                                  errMsg.includes('too far') ||
-                                  errMsg.includes('too small') ||
-                                  errMsg.includes('size:') ||
-                                  errMsg.includes('not straight') ||
-                                  errMsg.includes('profile') ||
-                                  errMsg.includes('sideways') ||
-                                  errMsg.includes('tilted') ||
-                                  errMsg.includes('Obstruction') ||
-                                  errMsg.includes('confidence:');
+      const lowerErr = errMsg.toLowerCase();
+      const isQualityCheckError = lowerErr.includes('please look at the camera') || 
+                                  lowerErr.includes('face not found') ||
+                                  lowerErr.includes('invalid image') ||
+                                  lowerErr.includes('one person at a time') ||
+                                  lowerErr.includes('multiple faces') ||
+                                  lowerErr.includes('already registered') ||
+                                  lowerErr.includes('quota');
       if (!isQualityCheckError) {
         generalErrorHtml = `
           <div class="general-checklist-error">
