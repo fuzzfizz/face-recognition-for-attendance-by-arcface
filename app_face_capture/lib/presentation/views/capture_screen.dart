@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
   bool _isInitializing = true;
   bool _isTakingPicture = false;
 
+  // Countdown state variables
+  bool _isPreparing = true;
+  int _countdownSeconds = 3;
+  Timer? _countdownTimer;
+
   @override
   void initState() {
     super.initState();
@@ -53,11 +59,31 @@ class _CaptureScreenState extends State<CaptureScreen> {
         enableAudio: false,
       );
       await _cameraController!.initialize();
+      if (mounted) {
+        _startPreparationCountdown();
+      }
     } catch (e) {
       debugPrint('Camera init error: $e');
     } finally {
       if (mounted) setState(() => _isInitializing = false);
     }
+  }
+
+  void _startPreparationCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_countdownSeconds > 1) {
+          _countdownSeconds--;
+        } else {
+          _isPreparing = false;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   Future<void> _capturePhoto(CaptureViewModel viewModel) async {
@@ -94,35 +120,16 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _cameraController?.dispose();
     super.dispose();
   }
 
-  String _getPromptText(int count) {
-    switch (count) {
-      case 0:
-        return 'Look straight at the camera (Neutral)';
-      case 1:
-        return 'Smile naturally';
-      case 2:
-        return 'Turn your head slightly to the left';
-      case 3:
-        return 'Turn your head slightly to the right';
-      case 4:
-        return 'Tilt your head slightly up';
-      case 5:
-        return 'Tilt your head slightly down';
-      case 6:
-        return 'If wearing glasses or mask, please remove them';
-      case 7:
-        return 'Blink your eyes once';
-      case 8:
-        return 'Show a different expression (e.g. surprised)';
-      case 9:
-        return 'Final look straight at the camera';
-      default:
-        return 'Look straight at the camera';
+  String _getPromptText(int count, int total) {
+    if (_isPreparing) {
+      return 'Get ready...';
     }
+    return 'Capturing photo ${count + 1} of $total';
   }
 
   @override
@@ -181,8 +188,38 @@ class _CaptureScreenState extends State<CaptureScreen> {
                           children: [
                             CameraPreviewWidget(controller: _cameraController!),
                             FaceGuideOverlay(
-                              guideText: _getPromptText(viewModel.capturedCount),
+                              guideText: _getPromptText(viewModel.capturedCount, viewModel.requiredPhotos),
                             ),
+                            if (_isPreparing)
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.black.withOpacity(0.6),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '$_countdownSeconds',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 72,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Get ready! Align your face in the frame.',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             Positioned(
                               top: 16,
                               left: 16,
@@ -211,7 +248,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      _getPromptText(viewModel.capturedCount),
+                                      _getPromptText(viewModel.capturedCount, viewModel.requiredPhotos),
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white,
@@ -254,7 +291,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: CaptureButton(
-                    isEnabled: !viewModel.isComplete && !_isTakingPicture,
+                    isEnabled: !_isPreparing && !viewModel.isComplete && !_isTakingPicture,
                     onPressed: () => _capturePhoto(viewModel),
                   ),
                 ),
