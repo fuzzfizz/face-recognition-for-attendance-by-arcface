@@ -791,7 +791,7 @@ function parseValidationChecks(item) {
     let failReason = errMsg;
     
     const lowerErr = errMsg.toLowerCase();
-    if (lowerErr.includes('please look at the camera') || lowerErr.includes('face not found') || lowerErr.includes('invalid image')) {
+    if (lowerErr.includes('please look at the camera') || lowerErr.includes('face not found') || lowerErr.includes('invalid image') || lowerErr.includes('no face')) {
       failedStep = 1;
     } else if (lowerErr.includes('one person at a time') || lowerErr.includes('multiple faces')) {
       failedStep = 2;
@@ -877,6 +877,7 @@ function renderChecklistsHtml(items) {
       const lowerErr = errMsg.toLowerCase();
       const isQualityCheckError = lowerErr.includes('please look at the camera') || 
                                   lowerErr.includes('face not found') ||
+                                  lowerErr.includes('no face') ||
                                   lowerErr.includes('invalid image') ||
                                   lowerErr.includes('one person at a time') ||
                                   lowerErr.includes('multiple faces') ||

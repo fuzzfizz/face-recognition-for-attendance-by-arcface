@@ -113,10 +113,15 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
         
         val_res = processor.validate_image_quality(cv_img)
         if not val_res["passed"]:
+            err_msg = val_res["error_message"]
+            if err_msg == "Please look at the camera":
+                err_msg = "Face not found, please retake"
+            elif err_msg == "One person at a time":
+                err_msg = "Multiple faces in frame"
             results.append({
                 "filename": file.filename,
                 "passed": False,
-                "error": val_res["error_message"],
+                "error": err_msg,
                 "validation_checklist": val_res["results"]
             })
             has_failure = True

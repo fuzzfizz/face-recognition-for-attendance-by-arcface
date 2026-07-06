@@ -89,7 +89,7 @@ async def test_register_images_no_face(
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
         "failed_step": 1,
-        "error_message": "Face not found, please retake",
+        "error_message": "Please look at the camera",
         "results": {
             "face_detected": False,
             "single_face": False
@@ -107,6 +107,38 @@ async def test_register_images_no_face(
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail["message"] == "Some photos failed face verification."
     assert exc_info.value.detail["results"][0]["error"] == "Face not found, please retake"
+
+@pytest.mark.anyio
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+async def test_register_images_multiple_faces(
+    mock_upsert_user, mock_get_processor
+):
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": False,
+        "failed_step": 2,
+        "error_message": "One person at a time",
+        "results": {
+            "face_detected": True,
+            "single_face": False
+        }
+    }
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"multiple_faces_bytes")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await register_images("S123", "John Doe", [mock_file])
+    
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["message"] == "Some photos failed face verification."
+    assert exc_info.value.detail["results"][0]["error"] == "Multiple faces in frame"
 
 @pytest.mark.anyio
 @patch("app.face_processor.get_face_processor")

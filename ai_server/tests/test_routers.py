@@ -280,7 +280,7 @@ def test_register_route_validation_failure(mock_upsert, mock_get_processor):
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
         "failed_step": 1,
-        "error_message": "Face not found, please retake",
+        "error_message": "Please look at the camera",
         "results": {
             "face_detected": False,
             "single_face": False
