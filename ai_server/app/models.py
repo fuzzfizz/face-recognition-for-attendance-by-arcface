@@ -21,20 +21,7 @@ class User(Base):
     name = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    images = relationship("UserImage", back_populates="user", cascade="all, delete-orphan")
     logs = relationship("CheckInLog", back_populates="user")
-
-
-class UserImage(Base):
-    __tablename__ = "user_images"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    image_path = Column(String(255), nullable=True)
-    image_base64 = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-    user = relationship("User", back_populates="images")
 
 
 class RegistrationQueue(Base):

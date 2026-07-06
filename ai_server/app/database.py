@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any
 
 from app.config import DATABASE_URL
 from app.matcher import load_embeddings, save_embeddings, match_face
-from app.models import Base, User, UserImage, RegistrationQueue, CheckInLog
+from app.models import Base, User, RegistrationQueue, CheckInLog
 from app.supabase_client import (
     is_available as supabase_available,
     upsert_user as sb_upsert_user,
@@ -34,7 +34,6 @@ _IMAGES_DIR = None
 
 # Aliases kept for internal use — models live in app.models
 _UserModel = User
-_UserImageModel = UserImage
 _QueueModel = RegistrationQueue
 _LogModel = CheckInLog
 
@@ -363,10 +362,6 @@ def delete_student_from_db(student_id: str) -> bool:
 
             user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
             if user:
-                images = session.query(_UserImageModel).filter(_UserImageModel.user_id == user.id).all()
-                for img in images:
-                    if img.image_path:
-                        files_to_delete.append(img.image_path)
                 session.delete(user)
 
             q_items = session.query(_QueueModel).filter(_QueueModel.student_id == student_id).all()
