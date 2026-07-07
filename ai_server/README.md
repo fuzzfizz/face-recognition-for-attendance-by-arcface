@@ -127,3 +127,23 @@ Run the full pytest suite:
 $env:PYTHONPATH="ai_server"
 python -m pytest ai_server/tests/ -v
 ```
+
+## Testing & API Usage with Postman
+
+We provide a Postman Collection and a corresponding Environment file to easily test and interact with the AI Server.
+
+### How to Setup:
+1. **Import the Collection:**
+   - Import the [`FaceAttend_AI_Server.postman_collection.json`](file:///D:/AIproject/ai_server/FaceAttend_AI_Server.postman_collection.json) file into Postman.
+2. **Import the Environment:**
+   - Import the [`FaceAttend_AI_Server.postman_environment.json`](file:///D:/AIproject/ai_server/FaceAttend_AI_Server.postman_environment.json) file into Postman.
+3. **Select the Environment:**
+   - In the top-right corner of Postman, select the environment dropdown and choose **"FaceAttend AI Server Environment"**.
+4. **Configure Variables:**
+   - Click the Environment quick look icon (eye button) or edit the environment to set:
+     - `base_url`: Your server address (defaults to `http://localhost:8000`).
+     - `admin_key`: Must match your `ADMIN_API_KEY` defined in the server's `.env`.
+     - `student_id`: Used to test registration status, verification, and deletion (defaults to `S001`).
+
+> [!NOTE]
+> Postman also supports **Collection-level variables** which are embedded in the collection itself. You can access and edit them by clicking on the **"FaceAttend AI Server"** collection root name in the left sidebar and navigating to the **"Variables"** tab.
