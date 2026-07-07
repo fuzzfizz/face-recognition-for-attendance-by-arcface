@@ -134,9 +134,9 @@ We provide a Postman Collection and a corresponding Environment file to easily t
 
 ### How to Setup:
 1. **Import the Collection:**
-   - Import the [`FaceAttend_AI_Server.postman_collection.json`](file:///D:/AIproject/ai_server/FaceAttend_AI_Server.postman_collection.json) file into Postman.
+   - Import the [`FaceAttend_AI_Server.postman_collection.json`](./FaceAttend_AI_Server.postman_collection.json) file into Postman.
 2. **Import the Environment:**
-   - Import the [`FaceAttend_AI_Server.postman_environment.json`](file:///D:/AIproject/ai_server/FaceAttend_AI_Server.postman_environment.json) file into Postman.
+   - Import the [`FaceAttend_AI_Server.postman_environment.json`](./FaceAttend_AI_Server.postman_environment.json) file into Postman.
 3. **Select the Environment:**
    - In the top-right corner of Postman, select the environment dropdown and choose **"FaceAttend AI Server Environment"**.
 4. **Configure Variables:**
