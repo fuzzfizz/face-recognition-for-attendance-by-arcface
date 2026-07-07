@@ -22,12 +22,13 @@ $dayEnd   = $date . 'T23:59:59Z';
 try {
     // Build query params for check_in_logs
     $params = [
-        'select'    => 'id,student_id,similarity_score,device_id,timestamp',
-        'timestamp' => 'gte.' . $dayStart,
-        'and'       => '(timestamp.lte.' . $dayEnd . ')',
-        'order'     => 'timestamp.desc',
-        'limit'     => (string)$perPage,
-        'offset'    => (string)$offset,
+        'select'     => 'id,student_id,similarity_score,device_id,timestamp',
+        'timestamp'  => 'gte.' . $dayStart,
+        'student_id' => 'not.is.null',
+        'and'        => '(timestamp.lte.' . $dayEnd . ')',
+        'order'      => 'timestamp.desc',
+        'limit'      => (string)$perPage,
+        'offset'     => (string)$offset,
     ];
     if ($deviceId !== '') {
         $params['device_id'] = 'eq.' . $deviceId;
@@ -66,9 +67,10 @@ try {
 
     // Count total matching rows for pagination
     $countParams = [
-        'select'    => 'id',
-        'timestamp' => 'gte.' . $dayStart,
-        'and'       => '(timestamp.lte.' . $dayEnd . ')',
+        'select'     => 'id',
+        'timestamp'  => 'gte.' . $dayStart,
+        'student_id' => 'not.is.null',
+        'and'        => '(timestamp.lte.' . $dayEnd . ')',
     ];
     if ($deviceId !== '') {
         $countParams['device_id'] = 'eq.' . $deviceId;
