@@ -59,7 +59,7 @@ function supabase_get(string $table, array $params = []): array {
 function supabase_count(string $table, array $params = []): int {
     $url = SUPABASE_URL . '/rest/v1/' . urlencode($table);
     $params['select'] = 'id'; // minimal select
-    $params['limit']  = '1';  // minimize response payload body size
+    $params['limit']  = '0';  // return empty array in body to minimize response payload size
     $url .= '?' . http_build_query($params);
 
     $ch = curl_init($url);
@@ -91,10 +91,10 @@ function supabase_count(string $table, array $params = []): int {
         throw new Exception("Supabase count query on '$table' failed with status $status");
     }
 
-    // Parse \"0-X/TOTAL\" -> TOTAL
-    if (preg_match('/\\/(\\d+)$/', $range, $m)) {
+    // Parse "0-X/TOTAL" -> TOTAL
+    if (preg_match('/\/(\d+)$/', $range, $m)) {
         return (int)$m[1];
     }
-    return 0;
+    throw new Exception("Supabase count query on '$table' failed: Content-Range header is missing or invalid");
 }
 
