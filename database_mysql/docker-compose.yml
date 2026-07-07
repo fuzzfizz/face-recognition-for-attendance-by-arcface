@@ -2,14 +2,14 @@ version: "3.8"
 
 services:
   db:
-    image: mysql:8.0
-    container_name: face_attendance_db
+    image: athit0900/face-recognition-ai-database:latest
+    container_name: face-recognition-ai-database
     restart: always
     environment:
-      MYSQL_DATABASE: face_attendance
-      MYSQL_USER: face_admin
-      MYSQL_PASSWORD: SecurePassword123!
-      MYSQL_ROOT_PASSWORD: RootSecurePassword123!
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
