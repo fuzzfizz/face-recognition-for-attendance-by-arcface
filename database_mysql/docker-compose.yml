@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   db:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: mysql:8.0
     container_name: face_attendance_db
     restart: always
     environment:
@@ -16,6 +14,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./init_schema.sql:/docker-entrypoint-initdb.d/init_schema.sql
 
 volumes:
   mysql_data:
