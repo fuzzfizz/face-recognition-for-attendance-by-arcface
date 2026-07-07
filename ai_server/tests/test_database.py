@@ -272,6 +272,7 @@ def test_sqlite_dynamic_migration(tmp_path):
                 q_res = conn.execute(text("PRAGMA table_info(registration_queue);")).fetchall()
                 q_cols = [col[1] for col in q_res]
                 assert "error_message" in q_cols
+                assert "image_blob" in q_cols
     finally:
         # Restore settings
         if database._sqlite_engine:

@@ -83,6 +83,8 @@ def _init_sqlite():
         q_cols = [col[1] for col in q_res]
         if "error_message" not in q_cols:
             conn.execute(text("ALTER TABLE registration_queue ADD COLUMN error_message VARCHAR;"))
+        if "image_blob" not in q_cols:
+            conn.execute(text("ALTER TABLE registration_queue ADD COLUMN image_blob BLOB;"))
 
 
 

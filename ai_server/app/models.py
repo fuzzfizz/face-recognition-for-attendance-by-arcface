@@ -6,7 +6,7 @@ It has zero imports from supabase_client, face_processor, or matcher.
 """
 import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 # Shared declarative base — all models must use this instance.
@@ -24,12 +24,21 @@ class User(Base):
     logs = relationship("CheckInLog", back_populates="user")
 
 
+class UserImage(Base):
+    __tablename__ = "user_images"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    image_blob = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class RegistrationQueue(Base):
     __tablename__ = "registration_queue"
 
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(String(20), nullable=False, index=True)
-    image_path = Column(String(255), nullable=False)
+    image_path = Column(String(255), nullable=True)
+    image_blob = Column(LargeBinary, nullable=True)
     status = Column(String(20), nullable=False, default="pending")
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

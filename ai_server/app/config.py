@@ -12,6 +12,13 @@ EMBEDDINGS_PATH = DATA_DIR / "face_embeddings.pkl"
 # If no Supabase config is provided, the app falls back to SQLite
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./face_recognition.db")
 
+# Database Mode Configuration
+# Defaults to "sqlite" if not set. Supports "mysql" and "supabase".
+DB_MODE = os.getenv("DB_MODE", "sqlite")
+
+# Dedicated MYSQL_URL, fallback to DATABASE_URL
+MYSQL_URL = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL", "")
+
 # ──────────────────────────────────────────────
 # Supabase Configuration
 # ──────────────────────────────────────────────
