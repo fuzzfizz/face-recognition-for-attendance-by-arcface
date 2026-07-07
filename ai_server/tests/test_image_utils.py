@@ -94,3 +94,23 @@ class TestDecodeBase64Image:
     def test_invalid_base64_returns_none(self):
         img = decode_base64_image("!!!not-valid-base64!!!")
         assert img is None
+
+
+# ── decode_image_from_source (db:// reference) ──────────────────────
+
+
+class TestDecodeImageFromSourceDb:
+    def test_valid_db_ref(self):
+        from unittest.mock import patch
+        raw = _make_tiny_jpeg_bytes()
+        with patch("app.database.get_image_blob_by_ref", return_value=raw) as mock_get_blob:
+            img = decode_image_from_source("db://registration_queue/1")
+            assert img is not None
+            assert img.shape == (2, 2, 3)
+            mock_get_blob.assert_called_once_with("db://registration_queue/1")
+
+    def test_invalid_db_ref_returns_none(self):
+        from unittest.mock import patch
+        with patch("app.database.get_image_blob_by_ref", return_value=None):
+            img = decode_image_from_source("db://registration_queue/999")
+            assert img is None

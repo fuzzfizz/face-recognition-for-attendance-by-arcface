@@ -279,7 +279,131 @@ def test_sqlite_dynamic_migration(tmp_path):
             database._sqlite_engine.dispose()
         database._sqlite_engine = orig_engine
         database._SessionLocal = orig_session_local
+def test_mysql_mode_upload_image_and_insert_queue_item(in_memory_db):
+    """Test upload_image and insert_queue_item in MySQL DB_MODE."""
+    from app.database import upload_image, insert_queue_item, _get_sqlite_session
+    from app.models import RegistrationQueue
+    from unittest.mock import patch
+
+    with patch("app.database.DB_MODE", "mysql"):
+        # 1. Test upload_image (inserts temporary row)
+        image_bytes = b"mysql_dummy_image_bytes"
+        ref_path = upload_image(image_bytes, "S100")
+        assert ref_path is not None
+        assert ref_path.startswith("db://registration_queue/")
+        
+        # Verify temporary row exists in DB
+        session = next(_get_sqlite_session())
+        row_id = int(ref_path.split("/")[-1])
+        item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
+        assert item is not None
+        assert item.student_id == "S100"
+        assert item.image_blob == image_bytes
+        assert item.status == "uploading"
+        session.close()
+
+        # 2. Test insert_queue_item (updates status to pending and sets image_path)
+        success = insert_queue_item("S100", ref_path)
+        assert success is True
+
+        # Verify row status was updated
+        session = next(_get_sqlite_session())
+        item_updated = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
+        assert item_updated is not None
+        assert item_updated.status == "pending"
+        assert item_updated.image_path == ref_path
+        session.close()
 
 
+def test_get_image_blob_by_ref(in_memory_db):
+    """Test get_image_blob_by_ref fetches blob bytes from registration_queue and user_images."""
+    from app.database import get_image_blob_by_ref, _get_sqlite_session
+    from app.models import RegistrationQueue, User, UserImage
 
+    session = next(_get_sqlite_session())
+    
+    # 1. Setup registration_queue item
+    q_item = RegistrationQueue(student_id="S101", image_blob=b"queue_blob_data", status="pending")
+    session.add(q_item)
+    session.commit()
+    q_id = q_item.id
+
+    # 2. Setup user and user_images item
+    user = User(student_id="S101", name="Blob User")
+    session.add(user)
+    session.commit()
+    u_id = user.id
+    
+    u_img = UserImage(user_id=u_id, image_blob=b"user_blob_data")
+    session.add(u_img)
+    session.commit()
+    ui_id = u_img.id
+
+    session.close()
+
+    # 3. Test retrieving from registration_queue
+    blob1 = get_image_blob_by_ref(f"db://registration_queue/{q_id}")
+    assert blob1 == b"queue_blob_data"
+
+    # 4. Test retrieving from user_images
+    blob2 = get_image_blob_by_ref(f"db://user_images/{ui_id}")
+    assert blob2 == b"user_blob_data"
+
+    # 5. Test invalid table name
+    blob3 = get_image_blob_by_ref(f"db://invalid_table/{q_id}")
+    assert blob3 is None
+
+    # 6. Test invalid formats
+    assert get_image_blob_by_ref("db://registration_queue/invalid_id") is None
+    assert get_image_blob_by_ref("db://registration_queue") is None
+    assert get_image_blob_by_ref("invalid_prefix://registration_queue/1") is None
+
+
+def test_delete_student_cascade_sql(in_memory_db):
+    """Test cascade deletion of user records, queue items, and logs cleanly in SQL mode."""
+    from app.database import delete_student_from_db, _get_sqlite_session
+    from app.models import User, RegistrationQueue, CheckInLog, UserImage
+
+    session = next(_get_sqlite_session())
+    
+    # Setup
+    user = User(student_id="S102", name="Cascade User")
+    session.add(user)
+    session.commit()
+    u_id = user.id
+
+    q_item = RegistrationQueue(student_id="S102", image_path="db://registration_queue/1", status="pending")
+    session.add(q_item)
+    
+    u_img = UserImage(user_id=u_id, image_blob=b"img")
+    session.add(u_img)
+    
+    log1 = CheckInLog(student_id="S102", similarity_score=0.9, device_id="D1")
+    session.add(log1)
+    
+    log2 = CheckInLog(user_id=u_id, student_id="S102", similarity_score=0.95, device_id="D2")
+    session.add(log2)
+
+    session.commit()
+    session.close()
+
+    # Verify everything exists before deletion
+    session = next(_get_sqlite_session())
+    assert session.query(User).filter(User.student_id == "S102").count() == 1
+    assert session.query(RegistrationQueue).filter(RegistrationQueue.student_id == "S102").count() == 1
+    assert session.query(UserImage).filter(UserImage.user_id == u_id).count() == 1
+    assert session.query(CheckInLog).filter(CheckInLog.student_id == "S102").count() == 2
+    session.close()
+
+    # Delete student
+    success = delete_student_from_db("S102")
+    assert success is True
+
+    # Verify cascade deletion
+    session = next(_get_sqlite_session())
+    assert session.query(User).filter(User.student_id == "S102").count() == 0
+    assert session.query(RegistrationQueue).filter(RegistrationQueue.student_id == "S102").count() == 0
+    assert session.query(UserImage).filter(UserImage.user_id == u_id).count() == 0
+    assert session.query(CheckInLog).filter(CheckInLog.student_id == "S102").count() == 0
+    session.close()
 

@@ -12,8 +12,10 @@ import requests
 
 def decode_image_from_source(source: str) -> np.ndarray | None:
     """
-    Load an image from a local file path or a URL.
+    Load an image from a local file path, URL, or database reference.
 
+    If *source* starts with ``db://``, the image blob is loaded from
+    the database and decoded in memory.
     If *source* starts with ``http://`` or ``https://``, the image is
     downloaded via :func:`requests.get` (timeout 10 s) and decoded in
     memory.  Otherwise it is read from the local filesystem with
@@ -21,6 +23,13 @@ def decode_image_from_source(source: str) -> np.ndarray | None:
 
     Returns an OpenCV BGR image (numpy array) or ``None`` on failure.
     """
+    if source.startswith("db://"):
+        from app.database import get_image_blob_by_ref
+        blob_bytes = get_image_blob_by_ref(source)
+        if blob_bytes:
+            return decode_image_bytes(blob_bytes)
+        return None
+
     if source.startswith("http://") or source.startswith("https://"):
         try:
             response = requests.get(source, timeout=10)
