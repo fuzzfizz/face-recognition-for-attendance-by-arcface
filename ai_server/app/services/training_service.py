@@ -5,8 +5,6 @@ from app.database import (
     update_queue_item_status,
     get_all_embeddings,
     save_all_embeddings,
-    get_image_blob_by_ref,
-    add_user_image,
 )
 from app.face_processor import get_face_processor
 from app.matcher import invalidate_cache
@@ -63,22 +61,7 @@ def process_pending_queue(limit: int = 50) -> dict:
                         new_embeddings.append(result["embedding"])
                         all_item_statuses.append((item["id"], "completed", None))
                         
-                        # Get the raw image_blob and save it to user_images
-                        image_blob = None
-                        if item.get("image_path"):
-                            if item["image_path"].startswith("db://"):
-                                image_blob = get_image_blob_by_ref(item["image_path"])
-                            else:
-                                import os
-                                if os.path.exists(item["image_path"]):
-                                    try:
-                                        with open(item["image_path"], "rb") as f:
-                                            image_blob = f.read()
-                                    except Exception as e:
-                                        print(f"Error reading local file: {e}")
-                        
-                        if image_blob:
-                            add_user_image(student_id, image_blob)
+
                 else:
                     all_item_statuses.append((item["id"], "failed", "No face detected"))
 

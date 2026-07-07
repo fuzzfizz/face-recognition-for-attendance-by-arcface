@@ -316,9 +316,9 @@ def test_mysql_mode_upload_image_and_insert_queue_item(in_memory_db):
 
 
 def test_get_image_blob_by_ref(in_memory_db):
-    """Test get_image_blob_by_ref fetches blob bytes from registration_queue and user_images."""
+    """Test get_image_blob_by_ref fetches blob bytes from registration_queue and returns None for user_images."""
     from app.database import get_image_blob_by_ref, _get_sqlite_session
-    from app.models import RegistrationQueue, User, UserImage
+    from app.models import RegistrationQueue, User
 
     session = next(_get_sqlite_session())
     
@@ -328,32 +328,21 @@ def test_get_image_blob_by_ref(in_memory_db):
     session.commit()
     q_id = q_item.id
 
-    # 2. Setup user and user_images item
-    user = User(student_id="S101", name="Blob User")
-    session.add(user)
-    session.commit()
-    u_id = user.id
-    
-    u_img = UserImage(user_id=u_id, image_blob=b"user_blob_data")
-    session.add(u_img)
-    session.commit()
-    ui_id = u_img.id
-
     session.close()
 
-    # 3. Test retrieving from registration_queue
+    # 2. Test retrieving from registration_queue
     blob1 = get_image_blob_by_ref(f"db://registration_queue/{q_id}")
     assert blob1 == b"queue_blob_data"
 
-    # 4. Test retrieving from user_images
-    blob2 = get_image_blob_by_ref(f"db://user_images/{ui_id}")
-    assert blob2 == b"user_blob_data"
+    # 3. Test retrieving from user_images returns None
+    blob2 = get_image_blob_by_ref("db://user_images/1")
+    assert blob2 is None
 
-    # 5. Test invalid table name
+    # 4. Test invalid table name
     blob3 = get_image_blob_by_ref(f"db://invalid_table/{q_id}")
     assert blob3 is None
 
-    # 6. Test invalid formats
+    # 5. Test invalid formats
     assert get_image_blob_by_ref("db://registration_queue/invalid_id") is None
     assert get_image_blob_by_ref("db://registration_queue") is None
     assert get_image_blob_by_ref("invalid_prefix://registration_queue/1") is None
@@ -362,7 +351,7 @@ def test_get_image_blob_by_ref(in_memory_db):
 def test_delete_student_cascade_sql(in_memory_db):
     """Test cascade deletion of user records, queue items, and logs cleanly in SQL mode."""
     from app.database import delete_student_from_db, _get_sqlite_session
-    from app.models import User, RegistrationQueue, CheckInLog, UserImage
+    from app.models import User, RegistrationQueue, CheckInLog
 
     session = next(_get_sqlite_session())
     
@@ -374,9 +363,6 @@ def test_delete_student_cascade_sql(in_memory_db):
 
     q_item = RegistrationQueue(student_id="S102", image_path="db://registration_queue/1", status="pending")
     session.add(q_item)
-    
-    u_img = UserImage(user_id=u_id, image_blob=b"img")
-    session.add(u_img)
     
     log1 = CheckInLog(student_id="S102", similarity_score=0.9, device_id="D1")
     session.add(log1)
@@ -391,7 +377,6 @@ def test_delete_student_cascade_sql(in_memory_db):
     session = next(_get_sqlite_session())
     assert session.query(User).filter(User.student_id == "S102").count() == 1
     assert session.query(RegistrationQueue).filter(RegistrationQueue.student_id == "S102").count() == 1
-    assert session.query(UserImage).filter(UserImage.user_id == u_id).count() == 1
     assert session.query(CheckInLog).filter(CheckInLog.student_id == "S102").count() == 2
     session.close()
 
@@ -403,42 +388,15 @@ def test_delete_student_cascade_sql(in_memory_db):
     session = next(_get_sqlite_session())
     assert session.query(User).filter(User.student_id == "S102").count() == 0
     assert session.query(RegistrationQueue).filter(RegistrationQueue.student_id == "S102").count() == 0
-    assert session.query(UserImage).filter(UserImage.user_id == u_id).count() == 0
     assert session.query(CheckInLog).filter(CheckInLog.student_id == "S102").count() == 0
     session.close()
 
 
-def test_add_user_image(in_memory_db):
-    """Test add_user_image function inserts image blob for existing user."""
-    from app.database import add_user_image, _get_sqlite_session, upsert_user
-    from app.models import UserImage, User
-
-    # 1. Setup user
-    upsert_user("S105", "Test Image User")
-
-    # 2. Add user image
-    success = add_user_image("S105", b"test_image_blob_content")
-    assert success is True
-
-    # 3. Verify it was written to user_images
-    session = next(_get_sqlite_session())
-    user = session.query(User).filter(User.student_id == "S105").first()
-    assert user is not None
-    
-    user_imgs = session.query(UserImage).filter(UserImage.user_id == user.id).all()
-    assert len(user_imgs) == 1
-    assert user_imgs[0].image_blob == b"test_image_blob_content"
-    session.close()
-
-    # 4. Test adding for non-existing user
-    assert add_user_image("S999_NON_EXISTENT", b"some_blob") is False
-
-
 def test_mysql_mode_process_training_queue_blob_migration(in_memory_db):
-    """Test training pipeline processing and BLOB migration in MySQL DB_MODE."""
+    """Test training pipeline processing in MySQL DB_MODE."""
     from app.database import upload_image, insert_queue_item, _get_sqlite_session, upsert_user
     from app.services.training_service import process_pending_queue
-    from app.models import RegistrationQueue, UserImage, User
+    from app.models import RegistrationQueue, User
     from unittest.mock import patch, MagicMock
 
     # 1. Simulate MySQL mode
@@ -486,14 +444,8 @@ def test_mysql_mode_process_training_queue_blob_migration(in_memory_db):
         item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
         assert item is not None
         assert item.status == "completed"
-        
-        # 4. Verify that the image BLOB was successfully moved to user_images table
-        user = session.query(User).filter(User.student_id == "S106").first()
-        assert user is not None
-        user_imgs = session.query(UserImage).filter(UserImage.user_id == user.id).all()
-        assert len(user_imgs) == 1
-        assert user_imgs[0].image_blob == image_bytes
         session.close()
+
 
 
 

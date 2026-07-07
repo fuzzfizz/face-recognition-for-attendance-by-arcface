@@ -784,54 +784,6 @@ def test_process_pending_queue_duplicate_face(
     assert "S123" not in result["processed_students"]
 
 
-@patch("app.services.training_service.get_pending_queue_items")
-@patch("app.services.training_service.get_face_processor")
-@patch("app.services.training_service.update_queue_item_status")
-@patch("app.services.training_service.get_all_embeddings")
-@patch("app.services.training_service.save_all_embeddings")
-@patch("app.services.training_service.invalidate_cache")
-@patch("app.services.training_service.get_image_blob_by_ref")
-@patch("app.services.training_service.add_user_image")
-def test_process_pending_queue_saves_blob_to_user_images(
-    mock_add_user_image,
-    mock_get_image_blob_by_ref,
-    mock_invalidate,
-    mock_save,
-    mock_get_all,
-    mock_update_status,
-    mock_get_processor,
-    mock_get_pending,
-):
-    """Test that when process_pending_queue successfully processes an item, it moves the blob to user_images."""
-    # Setup pending queue item with db reference path
-    mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "db://registration_queue/1"}
-    ]
-    
-    mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
-    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
-    mock_get_processor.return_value = mock_processor
-
-    mock_get_all.return_value = []
-    
-    # Mock get_image_blob_by_ref to return fake image bytes
-    mock_get_image_blob_by_ref.return_value = b"fake_blob_bytes"
-
-    result = process_pending_queue()
-
-    # Verify status updated to completed
-    mock_update_status.assert_called_once_with(1, "completed", None)
-    
-    # Verify get_image_blob_by_ref called with the correct db URI
-    mock_get_image_blob_by_ref.assert_called_once_with("db://registration_queue/1")
-    
-    # Verify add_user_image called to insert the blob bytes
-    mock_add_user_image.assert_called_once_with("S123", b"fake_blob_bytes")
-
-    assert result["message"] == "Training completed for batch"
-    assert "S123" in result["processed_students"]
-
 
 
 

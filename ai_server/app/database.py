@@ -386,7 +386,6 @@ def get_image_blob_by_ref(ref_uri: str) -> Optional[bytes]:
     Fetch image blob from database using the reference URI.
     Supported URIs:
     - db://registration_queue/{id}
-    - db://user_images/{id}
     """
     if not ref_uri or not ref_uri.startswith("db://"):
         return None
@@ -400,55 +399,20 @@ def get_image_blob_by_ref(ref_uri: str) -> Optional[bytes]:
     except (ValueError, IndexError):
         return None
 
+    if table_name != "registration_queue":
+        return None
+
     _init_sql_db()
     session = next(_get_sqlite_session())
     try:
-        if table_name == "registration_queue":
-            from app.models import RegistrationQueue
-            item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
-            return item.image_blob if item else None
-        elif table_name == "user_images":
-            from app.models import UserImage
-            item = session.query(UserImage).filter(UserImage.id == row_id).first()
-            return item.image_blob if item else None
+        from app.models import RegistrationQueue
+        item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
+        return item.image_blob if item else None
     except Exception as e:
         print(f"[SQL] get_image_blob_by_ref error: {e}")
         return None
     finally:
         session.close()
-
-
-def add_user_image(student_id: str, image_blob: bytes) -> bool:
-    """
-    Insert the `image_blob` and the matching `user_id` into the `user_images` table.
-    Supports SQLite/MySQL (SQL mode).
-    """
-    if using_supabase():
-        return True
-
-    _init_sql_db()
-    session = next(_get_sqlite_session())
-    try:
-        user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
-        if not user:
-            print(f"[SQL] add_user_image: User not found for student_id {student_id}")
-            return False
-
-        from app.models import UserImage
-        u_img = UserImage(user_id=user.id, image_blob=image_blob)
-        session.add(u_img)
-        session.commit()
-        return True
-    except Exception as e:
-        print(f"[SQL] add_user_image error: {e}")
-        session.rollback()
-        return False
-    finally:
-        session.close()
-
-
-# Alias for backward compatibility / caller convenience
-save_user_image = add_user_image
 
 
 # ──────────────────────────────────────────────
@@ -502,12 +466,8 @@ def delete_student_from_db(student_id: str) -> bool:
                     files_to_delete.append(item.image_path)
                 session.delete(item)
 
-            # 3. Delete user images and user
+            # 3. Delete user
             if user:
-                from app.models import UserImage
-                user_imgs = session.query(UserImage).filter(UserImage.user_id == user.id).all()
-                for ui in user_imgs:
-                    session.delete(ui)
                 session.delete(user)
 
             session.commit()
