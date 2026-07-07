@@ -18,6 +18,9 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - INSIGHTFACE_HOME=/app/data/.insightface
+      - TRAINING_SCHEDULE_INFO=${TRAINING_SCHEDULE_INFO}
+      - TRAINING_SCHEDULE_TIMES=${TRAINING_SCHEDULE_TIMES}
+      - TZ=Asia/Bangkok
     volumes:
       - ./data:/app/data
     restart: unless-stopped
