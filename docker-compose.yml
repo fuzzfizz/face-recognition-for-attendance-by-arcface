@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    build:
+      context: ./database_mysql
+      dockerfile: Dockerfile
+    container_name: face_attendance_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: face_attendance
+      MYSQL_USER: face_admin
+      MYSQL_PASSWORD: SecurePassword123!
+      MYSQL_ROOT_PASSWORD: RootSecurePassword123!
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  app:
+    build:
+      context: ./ai_server
+      dockerfile: Dockerfile
+    container_name: face_recognition_api
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_MODE=mysql
+      - MYSQL_URL=mysql+pymysql://face_admin:SecurePassword123!@db/face_attendance
+      - ADMIN_API_KEY=your-secret-admin-key
+      - TRAINING_SCHEDULE_TIMES=00:00,12:00
+    volumes:
+      - app_data:/app/data
+
+volumes:
+  mysql_data:
+  app_data:
