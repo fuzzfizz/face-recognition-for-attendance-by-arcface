@@ -59,6 +59,7 @@ function supabase_get(string $table, array $params = []): array {
 function supabase_count(string $table, array $params = []): int {
     $url = SUPABASE_URL . '/rest/v1/' . urlencode($table);
     $params['select'] = 'id'; // minimal select
+    $params['limit']  = '1';  // minimize response payload body size
     $url .= '?' . http_build_query($params);
 
     $ch = curl_init($url);
@@ -80,14 +81,18 @@ function supabase_count(string $table, array $params = []): int {
     ]);
     curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err    = curl_error($ch);
     curl_close($ch);
 
-    if ($status >= 400) {
+    if ($err) {
+        throw new Exception("Supabase count query on '$table' failed: $err");
+    }
+    if ($status < 200 || $status >= 300) {
         throw new Exception("Supabase count query on '$table' failed with status $status");
     }
 
-    // Parse "0-X/TOTAL" -> TOTAL
-    if (preg_match('/\/(\d+)$/', $range, $m)) {
+    // Parse \"0-X/TOTAL\" -> TOTAL
+    if (preg_match('/\\/(\\d+)$/', $range, $m)) {
         return (int)$m[1];
     }
     return 0;
