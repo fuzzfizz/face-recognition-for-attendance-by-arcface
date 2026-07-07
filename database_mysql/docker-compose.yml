@@ -17,24 +17,5 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
-  app:
-    build:
-      context: ../ai_server
-      dockerfile: Dockerfile
-    container_name: face_recognition_api
-    restart: always
-    depends_on:
-      - db
-    ports:
-      - "8000:8000"
-    environment:
-      DB_MODE: mysql
-      MYSQL_URL: "mysql+pymysql://face_admin:SecurePassword123!@db/face_attendance"
-      ADMIN_API_KEY: "your-secret-admin-key"
-      TRAINING_SCHEDULE_TIMES: "00:00,12:00"
-    volumes:
-      - app_data:/app/data
-
 volumes:
   mysql_data:
-  app_data:
