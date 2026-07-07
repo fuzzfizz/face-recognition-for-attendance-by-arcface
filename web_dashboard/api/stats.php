@@ -53,9 +53,10 @@ try {
 
     // Today's check-ins count
     $todayRes = supabase_get('check_in_logs', [
-        'select'    => 'id',
-        'timestamp' => 'gte.' . $todayStart,
-        'and'       => '(timestamp.lte.' . $todayEnd . ')',
+        'select'     => 'id',
+        'timestamp'  => 'gte.' . $todayStart,
+        'student_id' => 'not.is.null',
+        'and'        => '(timestamp.lte.' . $todayEnd . ')',
     ]);
     if ($todayRes['error']) {
         throw new Exception("Today's checkins query failed: " . $todayRes['error']);
@@ -64,9 +65,10 @@ try {
 
     // Last check-in
     $lastRes = supabase_get('check_in_logs', [
-        'select' => 'student_id,timestamp',
-        'order'  => 'timestamp.desc',
-        'limit'  => '1',
+        'select'     => 'student_id,timestamp',
+        'student_id' => 'not.is.null',
+        'order'      => 'timestamp.desc',
+        'limit'      => '1',
     ]);
     if ($lastRes['error']) {
         throw new Exception("Last check-in query failed: " . $lastRes['error']);
