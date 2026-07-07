@@ -407,3 +407,93 @@ def test_delete_student_cascade_sql(in_memory_db):
     assert session.query(CheckInLog).filter(CheckInLog.student_id == "S102").count() == 0
     session.close()
 
+
+def test_add_user_image(in_memory_db):
+    """Test add_user_image function inserts image blob for existing user."""
+    from app.database import add_user_image, _get_sqlite_session, upsert_user
+    from app.models import UserImage, User
+
+    # 1. Setup user
+    upsert_user("S105", "Test Image User")
+
+    # 2. Add user image
+    success = add_user_image("S105", b"test_image_blob_content")
+    assert success is True
+
+    # 3. Verify it was written to user_images
+    session = next(_get_sqlite_session())
+    user = session.query(User).filter(User.student_id == "S105").first()
+    assert user is not None
+    
+    user_imgs = session.query(UserImage).filter(UserImage.user_id == user.id).all()
+    assert len(user_imgs) == 1
+    assert user_imgs[0].image_blob == b"test_image_blob_content"
+    session.close()
+
+    # 4. Test adding for non-existing user
+    assert add_user_image("S999_NON_EXISTENT", b"some_blob") is False
+
+
+def test_mysql_mode_process_training_queue_blob_migration(in_memory_db):
+    """Test training pipeline processing and BLOB migration in MySQL DB_MODE."""
+    from app.database import upload_image, insert_queue_item, _get_sqlite_session, upsert_user
+    from app.services.training_service import process_pending_queue
+    from app.models import RegistrationQueue, UserImage, User
+    from unittest.mock import patch, MagicMock
+
+    # 1. Simulate MySQL mode
+    with patch("app.database.DB_MODE", "mysql"), \
+         patch("app.services.training_service.get_face_processor") as mock_get_processor, \
+         patch("app.services.training_service.get_all_embeddings") as mock_get_all, \
+         patch("app.services.training_service.save_all_embeddings") as mock_save, \
+         patch("app.services.training_service.invalidate_cache") as mock_invalidate:
+         
+        # Create user
+        upsert_user("S106", "MySQL Test User")
+        
+        # Upload image to registration queue
+        image_bytes = b"mysql_integration_test_image_bytes"
+        ref_path = upload_image(image_bytes, "S106")
+        assert ref_path.startswith("db://registration_queue/")
+        
+        # Set to pending
+        insert_queue_item("S106", ref_path)
+        
+        # Setup mock processor
+        mock_processor = MagicMock()
+        # Mock decode_image_path to return a valid numpy array for training
+        mock_processor.decode_image_path.return_value = MagicMock()
+        mock_processor.validate_image_quality.return_value = {
+            "passed": True,
+            "results": {"face_detected": True, "single_face": True},
+            "face": MagicMock()
+        }
+        mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+        mock_get_processor.return_value = mock_processor
+        
+        mock_get_all.return_value = []
+        
+        # 2. Process the training queue
+        result = process_pending_queue()
+        
+        # Verify training succeeded
+        assert result["message"] == "Training completed for batch"
+        assert "S106" in result["processed_students"]
+        
+        # 3. Verify status of the queue item is updated to completed
+        session = next(_get_sqlite_session())
+        row_id = int(ref_path.split("/")[-1])
+        item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
+        assert item is not None
+        assert item.status == "completed"
+        
+        # 4. Verify that the image BLOB was successfully moved to user_images table
+        user = session.query(User).filter(User.student_id == "S106").first()
+        assert user is not None
+        user_imgs = session.query(UserImage).filter(UserImage.user_id == user.id).all()
+        assert len(user_imgs) == 1
+        assert user_imgs[0].image_blob == image_bytes
+        session.close()
+
+
+

@@ -418,7 +418,41 @@ def get_image_blob_by_ref(ref_uri: str) -> Optional[bytes]:
         session.close()
 
 
+def add_user_image(student_id: str, image_blob: bytes) -> bool:
+    """
+    Insert the `image_blob` and the matching `user_id` into the `user_images` table.
+    Supports SQLite/MySQL (SQL mode).
+    """
+    if using_supabase():
+        return True
+
+    _init_sql_db()
+    session = next(_get_sqlite_session())
+    try:
+        user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
+        if not user:
+            print(f"[SQL] add_user_image: User not found for student_id {student_id}")
+            return False
+
+        from app.models import UserImage
+        u_img = UserImage(user_id=user.id, image_blob=image_blob)
+        session.add(u_img)
+        session.commit()
+        return True
+    except Exception as e:
+        print(f"[SQL] add_user_image error: {e}")
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+
+# Alias for backward compatibility / caller convenience
+save_user_image = add_user_image
+
+
 # ──────────────────────────────────────────────
+
 # Embeddings (always local .pkl — never sent to cloud)
 # ──────────────────────────────────────────────
 def get_all_embeddings():
