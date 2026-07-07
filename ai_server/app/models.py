@@ -24,14 +24,6 @@ class User(Base):
     logs = relationship("CheckInLog", back_populates="user")
 
 
-class UserImage(Base):
-    __tablename__ = "user_images"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    image_blob = Column(LargeBinary, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-
 class RegistrationQueue(Base):
     __tablename__ = "registration_queue"
 
