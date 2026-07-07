@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     build:
-      context: ./database_mysql
+      context: .
       dockerfile: Dockerfile
     container_name: face_attendance_db
     restart: always
@@ -19,7 +19,7 @@ services:
 
   app:
     build:
-      context: ./ai_server
+      context: ../ai_server
       dockerfile: Dockerfile
     container_name: face_recognition_api
     restart: always
