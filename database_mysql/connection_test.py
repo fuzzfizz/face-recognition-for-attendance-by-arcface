@@ -97,15 +97,6 @@ class DatabaseAdapter:
         );
         CREATE INDEX IF NOT EXISTS idx_users_student_id ON users (student_id);
 
-        CREATE TABLE IF NOT EXISTS user_images (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            image_blob BLOB NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_user_images_user_id ON user_images (user_id);
-
         CREATE TABLE IF NOT EXISTS registration_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             student_id TEXT NOT NULL,
@@ -220,35 +211,12 @@ def main():
         assert user["name"] == student_name, f"Expected name {student_name}, got {user['name']}"
         print_success(f"Verified user data: student_id={user['student_id']}, name={user['name']}")
 
-        # Step 2: BLOB Storage & Retrieval (user_images)
-        print_step("Testing: BLOB Image Storage & Retrieval (user_images)")
-        # Create a mock 100-byte binary blob
-        mock_image_data = bytes([i % 256 for i in range(100)])
-        
-        db.execute(
-            "INSERT INTO user_images (user_id, image_blob) VALUES (%s, %s)",
-            (user_id, mock_image_data)
-        )
-        db.commit()
-        image_id = db.last_insert_id()
-        print_success(f"Inserted test image BLOB with ID: {image_id}")
-
-        # Retrieve and verify BLOB
-        db.execute("SELECT * FROM user_images WHERE id = %s", (image_id,))
-        img_row = db.fetchone()
-        assert img_row is not None, "Failed to retrieve inserted image BLOB."
-        
-        retrieved_blob = img_row["image_blob"]
-        # In python mysql-connector, blobs might be bytes or bytearray. SQLite returns bytes.
-        if isinstance(retrieved_blob, bytearray):
-            retrieved_blob = bytes(retrieved_blob)
-            
-        assert retrieved_blob == mock_image_data, "Retrieved BLOB does not match original data."
-        print_success(f"Verified image BLOB size matches: {len(retrieved_blob)} bytes.")
-
-        # Step 3: Registration Queue BLOB & Status Update
+        # Step 2: Registration Queue BLOB & Status Update
         print_step("Testing: Registration Queue & BLOB")
         queue_student_id = "pending_student_888"
+        
+        # Create a mock 100-byte binary blob
+        mock_image_data = bytes([i % 256 for i in range(100)])
         
         # Cleanup potential leftover
         db.execute("DELETE FROM registration_queue WHERE student_id = %s", (queue_student_id,))
@@ -283,7 +251,7 @@ def main():
         assert queue_row_updated["error_message"] == "No error", "Expected error_message 'No error'"
         print_success("Verified queue item status updated to 'processed' and error_message set.")
 
-        # Step 4: Check-in Logs Table
+        # Step 3: Check-in Logs Table
         print_step("Testing: Check-in Logs")
         device_id = "test_device_55"
         similarity = 0.897
@@ -304,18 +272,13 @@ def main():
         assert log_row["device_id"] == device_id, f"Expected device {device_id}, got {log_row['device_id']}"
         print_success("Verified check-in log values successfully.")
 
-        # Step 5: Clean Up
+        # Step 4: Clean Up
         print_step("Testing: Clean up & cascade verification")
         
-        # Deleting the user should cascade delete user_images (due to ON DELETE CASCADE)
+        # Deleting the user should cascade set NULL on check_in_logs
         db.execute("DELETE FROM users WHERE id = %s", (user_id,))
         db.commit()
         print_success("Deleted test user.")
-
-        # Verify cascade deletion of user_images
-        db.execute("SELECT * FROM user_images WHERE user_id = %s", (user_id,))
-        assert db.fetchone() is None, "Image BLOB was NOT cascade deleted!"
-        print_success("Verified image BLOB was cascade deleted.")
 
         # Verify check_in_logs user_id set to NULL (due to ON DELETE SET NULL)
         db.execute("SELECT * FROM check_in_logs WHERE id = %s", (log_id,))

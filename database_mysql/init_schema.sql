@@ -11,17 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_users_student_id (student_id)
 );
 
--- 2. Create 'user_images' table (stores active registered face photos)
-CREATE TABLE IF NOT EXISTS user_images (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    image_blob LONGBLOB NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_images_user_id (user_id)
-);
-
--- 3. Create 'registration_queue' table (stores pending registration photos)
+-- 2. Create 'registration_queue' table (stores pending registration photos)
 CREATE TABLE IF NOT EXISTS registration_queue (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(50) NOT NULL,
@@ -34,7 +24,7 @@ CREATE TABLE IF NOT EXISTS registration_queue (
     INDEX idx_registration_queue_status (status)
 );
 
--- 4. Create 'check_in_logs' table
+-- 3. Create 'check_in_logs' table
 CREATE TABLE IF NOT EXISTS check_in_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NULL,
