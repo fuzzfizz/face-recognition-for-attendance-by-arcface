@@ -4,43 +4,6 @@ header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
 
-// Get count via Prefer: count=exact header (separate curl call for count)
-function supabase_count(string $table, array $params = []): int {
-    $url = SUPABASE_URL . '/rest/v1/' . urlencode($table);
-    $params['select'] = 'id'; // minimal select
-    $url .= '?' . http_build_query($params);
-
-    $ch = curl_init($url);
-    $range = '';
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 10,
-        CURLOPT_HTTPHEADER     => [
-            'apikey: '               . SUPABASE_SERVICE_KEY,
-            'Authorization: Bearer ' . SUPABASE_SERVICE_KEY,
-            'Prefer: count=exact',
-        ],
-        CURLOPT_HEADERFUNCTION => function($ch, $header) use (&$range) {
-            if (stripos($header, 'content-range:') === 0) {
-                $range = trim(substr($header, strlen('content-range:')));
-            }
-            return strlen($header);
-        }
-    ]);
-    curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($status >= 400) {
-        throw new Exception("Supabase count query on '$table' failed with status $status");
-    }
-
-    // Parse "0-X/TOTAL" → TOTAL
-    if (preg_match('/\/(\d+)$/', $range, $m)) {
-        return (int)$m[1];
-    }
-    return 0;
-}
 
 // Today's date range in UTC
 $todayStart = gmdate('Y-m-d') . 'T00:00:00Z';
@@ -52,16 +15,11 @@ try {
     $pendingQueue   = supabase_count('registration_queue', ['status' => 'eq.pending']);
 
     // Today's check-ins count
-    $todayRes = supabase_get('check_in_logs', [
-        'select'     => 'id',
+    $todayCheckins = supabase_count('check_in_logs', [
         'timestamp'  => 'gte.' . $todayStart,
         'student_id' => 'not.is.null',
         'and'        => '(timestamp.lte.' . $todayEnd . ')',
     ]);
-    if ($todayRes['error']) {
-        throw new Exception("Today's checkins query failed: " . $todayRes['error']);
-    }
-    $todayCheckins = count($todayRes['data']);
 
     // Last check-in
     $lastRes = supabase_get('check_in_logs', [

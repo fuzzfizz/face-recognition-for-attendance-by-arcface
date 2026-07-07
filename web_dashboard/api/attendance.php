@@ -75,11 +75,7 @@ try {
     if ($deviceId !== '') {
         $countParams['device_id'] = 'eq.' . $deviceId;
     }
-    $totalRes = supabase_get('check_in_logs', $countParams);
-    if ($totalRes['error']) {
-        throw new Exception('Supabase unavailable: ' . $totalRes['error']);
-    }
-    $total    = count($totalRes['data']);
+    $total = supabase_count('check_in_logs', $countParams);
 
     echo json_encode([
         'data'  => $logs,
