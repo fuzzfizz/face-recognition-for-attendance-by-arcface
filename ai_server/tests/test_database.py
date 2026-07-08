@@ -18,9 +18,8 @@ def in_memory_db():
     database._sqlite_engine = None
     database._SessionLocal = None
 
-    # Patch config and availability
-    with patch("app.database.supabase_available", return_value=False), \
-         patch("app.database.DATABASE_URL", "sqlite:///:memory:"):
+    # Patch config
+    with patch("app.database.DATABASE_URL", "sqlite:///:memory:"):
         
         database._init_sqlite()
         yield
@@ -257,8 +256,7 @@ def test_sqlite_dynamic_migration(tmp_path):
     db_url = f"sqlite:///{db_file}"
     
     try:
-        with patch("app.database.supabase_available", return_value=False), \
-             patch("app.database.DATABASE_URL", db_url):
+        with patch("app.database.DATABASE_URL", db_url):
             
             # This should trigger _init_sqlite and run the migration code
             database._init_sqlite()

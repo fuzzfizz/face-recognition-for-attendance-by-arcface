@@ -12,9 +12,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
-    """Ensure tests run in pure SQLite offline mode unless explicitly enabled."""
-    monkeypatch.delenv("SUPABASE_URL", raising=False)
-    monkeypatch.delenv("SUPABASE_KEY", raising=False)
+    """Ensure tests run in pure SQLite offline mode."""
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("ADMIN_API_KEY", "test-admin-key")
 

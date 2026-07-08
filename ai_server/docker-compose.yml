@@ -21,6 +21,8 @@ services:
       - TRAINING_SCHEDULE_INFO=${TRAINING_SCHEDULE_INFO}
       - TRAINING_SCHEDULE_TIMES=${TRAINING_SCHEDULE_TIMES}
       - TZ=Asia/Bangkok
+      - DB_MODE=${DB_MODE:-}
+      - MYSQL_URL=${MYSQL_URL:-}
     volumes:
       - ./data:/app/data
     restart: unless-stopped

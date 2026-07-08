@@ -41,15 +41,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Face Recognition AI Server",
-    description="ArcFace + Supabase hybrid attendance system",
+    description="ArcFace attendance system",
     version="5.0.0",
     lifespan=lifespan,
 )
 
 @app.get("/", tags=["health"])
 def health():
-    from app.database import using_supabase
-    return {"status": "ok", "mode": "supabase" if using_supabase() else "sqlite"}
+    from app.config import DB_MODE
+    return {"status": "ok", "mode": DB_MODE}
 
 app.include_router(registration.router)
 app.include_router(training.router)
