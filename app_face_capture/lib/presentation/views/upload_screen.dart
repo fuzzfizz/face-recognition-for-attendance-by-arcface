@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
-import 'package:app_face_capture/data/models/registration_status.dart';
 
 class UploadScreen extends StatelessWidget {
   final String studentId;
