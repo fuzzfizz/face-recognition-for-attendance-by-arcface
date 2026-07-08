@@ -8,10 +8,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - DB_MODE=${DB_MODE:-mysql}
+      - MYSQL_URL=${MYSQL_URL:-}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/face_recognition.db}
-      - SUPABASE_URL=${SUPABASE_URL:-}
-      - SUPABASE_KEY=${SUPABASE_KEY:-}
-      - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-face-images}
       - ADMIN_API_KEY=${ADMIN_API_KEY:-}
       - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.45}
       - MODEL_NAME=${MODEL_NAME:-buffalo_l}
@@ -21,8 +20,6 @@ services:
       - TRAINING_SCHEDULE_INFO=${TRAINING_SCHEDULE_INFO}
       - TRAINING_SCHEDULE_TIMES=${TRAINING_SCHEDULE_TIMES}
       - TZ=Asia/Bangkok
-      - DB_MODE=${DB_MODE:-}
-      - MYSQL_URL=${MYSQL_URL:-}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
