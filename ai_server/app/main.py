@@ -48,8 +48,9 @@ app = FastAPI(
 
 @app.get("/", tags=["health"])
 def health():
-    from app.config import DB_MODE
-    return {"status": "ok", "mode": DB_MODE}
+    from app.config import DB_MODE, MYSQL_URL
+    actual_mode = "mysql" if (DB_MODE == "mysql" and MYSQL_URL) else "sqlite"
+    return {"status": "ok", "mode": actual_mode}
 
 app.include_router(registration.router)
 app.include_router(training.router)

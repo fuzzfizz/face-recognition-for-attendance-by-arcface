@@ -36,9 +36,15 @@ def _init_sql_db():
     _IMAGES_DIR = DATA_DIR / "uploads"
     _IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-    url = MYSQL_URL if DB_MODE == "mysql" else DATABASE_URL
-    if not url:
-        url = DATABASE_URL
+    if DB_MODE == "mysql":
+        if not MYSQL_URL:
+            raise RuntimeError(
+                "DB_MODE is 'mysql' but MYSQL_URL is not set. "
+                "Set MYSQL_URL=mysql+pymysql://user:pass@host:port/dbname in your environment."
+            )
+        url = MYSQL_URL
+    else:
+        url = DATABASE_URL or "sqlite:///./data/face_recognition.db"
 
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
     _sqlite_engine = create_engine(url, connect_args=connect_args)
