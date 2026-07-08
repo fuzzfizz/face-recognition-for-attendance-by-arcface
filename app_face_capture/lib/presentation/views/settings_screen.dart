@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -63,48 +62,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    // Upload method section
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Upload Method',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        RadioListTile<UploadMethod>(
-                          title: const Text('Via Server'),
-                          subtitle: const Text('Upload photos to the server which processes and registers them immediately.'),
-                          value: UploadMethod.viaServer,
-                          groupValue: model.uploadMethod,
-                          onChanged: (val) {
-                            if (val != null) model.setUploadMethod(val);
-                          },
-                        ),
-                        RadioListTile<UploadMethod>(
-                          title: const Text('Direct Supabase Storage'),
-                          subtitle: const Text('Upload photos directly to Supabase Storage. Model training must be triggered manually.'),
-                          value: UploadMethod.directSupabase,
-                          groupValue: model.uploadMethod,
-                          onChanged: (val) {
-                            if (val != null) model.setUploadMethod(val);
-                          },
-                        ),
-                        if (model.uploadMethod == UploadMethod.directSupabase) ...[
-                          const SizedBox(height: 12),
-                          const ContainerNote(),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -149,34 +106,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class ContainerNote extends StatelessWidget {
-  const ContainerNote({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.amber.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.amber.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Images uploaded directly. Training must be triggered by an admin.',
-              style: TextStyle(fontSize: 13, color: Colors.black87),
-            ),
-          ),
-        ],
       ),
     );
   }

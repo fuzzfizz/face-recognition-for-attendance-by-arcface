@@ -145,12 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() => _isCheckingStatus = true);
     try {
-      final settingsViewModel = context.read<SettingsViewModel>();
       final repository = FaceRepository();
-      final status = await repository.checkStatus(
-        studentId,
-        method: settingsViewModel.uploadMethod,
-      );
+      final status = await repository.checkStatus(studentId);
       if (mounted) {
         _showStatusDialog(context, studentId: studentId, status: status);
       }

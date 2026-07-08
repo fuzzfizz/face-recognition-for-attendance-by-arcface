@@ -15,15 +15,6 @@ class ApiConstants {
   static const int maxPhotosPerUpload = 3;
   static const double faceConfidenceThreshold = 0.8;
 
-  // Supabase and Admin Constants
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
   static const String adminPin = String.fromEnvironment(
     'ADMIN_PIN',
     defaultValue: '1234',

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
 import 'package:app_face_capture/data/models/registration_status.dart';
 
@@ -11,7 +10,6 @@ class UploadViewModel extends ChangeNotifier {
   final String studentId;
   final String studentName;
   final List<String> _imagePaths;
-  final UploadMethod method;
 
   UploadState _state = UploadState.idle;
   int _uploadedCount = 0;
@@ -23,7 +21,6 @@ class UploadViewModel extends ChangeNotifier {
     required this.studentId,
     required this.studentName,
     required List<String> imagePaths,
-    required this.method,
   })  : _repository = repository,
         _imagePaths = List.from(imagePaths);
 
@@ -47,7 +44,7 @@ class UploadViewModel extends ChangeNotifier {
 
     try {
       final files = _imagePaths.map((p) => File(p)).toList();
-      await _repository.uploadPhotos(studentId, studentName, files, method);
+      await _repository.uploadPhotos(studentId, studentName, files);
       _uploadedCount = _imagePaths.length;
       _state = UploadState.success;
       notifyListeners();

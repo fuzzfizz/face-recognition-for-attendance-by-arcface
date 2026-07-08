@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:app_face_capture/core/constants/storage_constants.dart';
 import 'package:app_face_capture/data/repositories/face_repository.dart';
-import 'package:app_face_capture/presentation/viewmodels/settings_viewmodel.dart';
 import 'package:app_face_capture/presentation/viewmodels/upload_viewmodel.dart';
 import 'package:app_face_capture/data/models/registration_status.dart';
 
@@ -23,14 +21,12 @@ class UploadScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settingsViewModel = context.read<SettingsViewModel>();
     return ChangeNotifierProvider(
       create: (_) => UploadViewModel(
         repository: FaceRepository(),
         studentId: studentId,
         studentName: studentName,
         imagePaths: imagePaths,
-        method: settingsViewModel.uploadMethod,
       )..startUpload(),
       child: Consumer<UploadViewModel>(
         builder: (context, viewModel, _) {
@@ -50,7 +46,6 @@ class UploadScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMethodBadge(viewModel),
                         const SizedBox(height: 24),
                         Expanded(child: _buildBody(context, viewModel)),
                       ],
@@ -61,29 +56,6 @@ class UploadScreen extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildMethodBadge(UploadViewModel viewModel) {
-    final isViaServer = viewModel.method == UploadMethod.viaServer;
-    return Chip(
-      avatar: Icon(
-        isViaServer ? Icons.dns_outlined : Icons.cloud_done_outlined,
-        size: 16,
-        color: isViaServer ? Colors.blue.shade900 : Colors.teal.shade900,
-      ),
-      label: Text(
-        isViaServer ? 'Method: Via Server' : 'Method: Direct Supabase',
-        style: TextStyle(
-          color: isViaServer ? Colors.blue.shade900 : Colors.teal.shade900,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-      backgroundColor: isViaServer ? Colors.blue.shade50 : Colors.teal.shade50,
-      side: BorderSide(
-        color: isViaServer ? Colors.blue.shade200 : Colors.teal.shade200,
       ),
     );
   }
