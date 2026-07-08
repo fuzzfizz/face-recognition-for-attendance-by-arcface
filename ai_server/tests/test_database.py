@@ -18,8 +18,7 @@ def in_memory_db():
     database._sqlite_engine = None
     database._SessionLocal = None
 
-    # Patch config
-    with patch("app.database.DATABASE_URL", "sqlite:///:memory:"):
+    with patch("app.database.MYSQL_URL", "sqlite:///:memory:"):
         
         database._init_sqlite()
         yield
@@ -256,7 +255,7 @@ def test_sqlite_dynamic_migration(tmp_path):
     db_url = f"sqlite:///{db_file}"
     
     try:
-        with patch("app.database.DATABASE_URL", db_url):
+        with patch("app.database.MYSQL_URL", db_url):
             
             # This should trigger _init_sqlite and run the migration code
             database._init_sqlite()
@@ -283,7 +282,7 @@ def test_mysql_mode_upload_image_and_insert_queue_item(in_memory_db):
     from app.models import RegistrationQueue
     from unittest.mock import patch
 
-    with patch("app.database.DB_MODE", "mysql"):
+    with patch("app.database.MYSQL_URL", "mysql+pymysql://dummy"):
         # 1. Test upload_image (inserts temporary row)
         image_bytes = b"mysql_dummy_image_bytes"
         ref_path = upload_image(image_bytes, "S100")
@@ -398,7 +397,7 @@ def test_mysql_mode_process_training_queue_blob_migration(in_memory_db):
     from unittest.mock import patch, MagicMock
 
     # 1. Simulate MySQL mode
-    with patch("app.database.DB_MODE", "mysql"), \
+    with patch("app.database.MYSQL_URL", "mysql+pymysql://dummy"), \
          patch("app.services.training_service.get_face_processor") as mock_get_processor, \
          patch("app.services.training_service.get_all_embeddings") as mock_get_all, \
          patch("app.services.training_service.save_all_embeddings") as mock_save, \
@@ -464,6 +463,21 @@ def test_database_rollback_on_write_error(in_memory_db):
         mock_session.close.assert_called_once()
 
 
+def test_config_production_error():
+    """Test that importing config.py throws RuntimeError in production if MYSQL_URL is missing."""
+    import sys
+    import importlib
+    from unittest.mock import patch
 
+    # Remove app.config from sys.modules if it exists
+    sys.modules.pop("app.config", None)
 
+    # Set env vars to simulate production environment without MYSQL_URL
+    with patch.dict("os.environ", {"MYSQL_URL": "", "ENV": "production", "APP_ENV": "", "TESTING": "", "FORCE_PROD_CHECK": "true"}):
+        with pytest.raises(RuntimeError) as exc_info:
+            importlib.import_module("app.config")
+        assert "MYSQL_URL environment variable is not set" in str(exc_info.value)
 
+    # Cleanup and reload config in clean test environment
+    sys.modules.pop("app.config", None)
+    importlib.import_module("app.config")

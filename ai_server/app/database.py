@@ -7,7 +7,7 @@ import datetime
 import os
 from typing import Optional, List, Dict, Any
 
-from app.config import DATABASE_URL, DB_MODE, MYSQL_URL
+from app.config import MYSQL_URL
 from app.matcher import load_embeddings, save_embeddings, match_face
 from app.models import Base, User, RegistrationQueue, CheckInLog
 
@@ -36,15 +36,7 @@ def _init_sql_db():
     _IMAGES_DIR = DATA_DIR / "uploads"
     _IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-    if DB_MODE == "mysql":
-        if not MYSQL_URL:
-            raise RuntimeError(
-                "DB_MODE is 'mysql' but MYSQL_URL is not set. "
-                "Set MYSQL_URL=mysql+pymysql://user:pass@host:port/dbname in your environment."
-            )
-        url = MYSQL_URL
-    else:
-        url = DATABASE_URL or "sqlite:///./data/face_recognition.db"
+    url = MYSQL_URL or "sqlite:///./data/face_recognition.db"
 
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
     _sqlite_engine = create_engine(url, connect_args=connect_args)
@@ -207,7 +199,8 @@ def get_latest_check_in_log(student_id: str) -> Optional[dict]:
 def insert_queue_item(student_id, image_path):
     session = _get_db_session()
     try:
-        if DB_MODE == "mysql" and image_path and image_path.startswith("db://registration_queue/"):
+        is_mysql = MYSQL_URL and not MYSQL_URL.startswith("sqlite")
+        if is_mysql and image_path and image_path.startswith("db://registration_queue/"):
             try:
                 row_id = int(image_path.split("/")[-1])
             except ValueError:
@@ -269,7 +262,8 @@ def update_queue_item_status(queue_id, status, error_message=None):
 
 def upload_image(file_bytes, student_id, ext="jpg"):
     """Upload image. Returns database URI (MySQL) or local path (SQLite)."""
-    if DB_MODE == "mysql":
+    is_mysql = MYSQL_URL and not MYSQL_URL.startswith("sqlite")
+    if is_mysql:
         session = _get_db_session()
         try:
             item = _QueueModel(
