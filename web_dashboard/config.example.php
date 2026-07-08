@@ -19,10 +19,12 @@ function get_db_connection() {
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ];
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            $pdo->exec("SET time_zone = '+00:00'");
         } catch (PDOException $e) {
+            error_log('Database connection failed: ' . $e->getMessage());
             header('Content-Type: application/json');
             http_response_code(500);
-            echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
+            echo json_encode(['error' => 'Database connection failed. Please contact the administrator.']);
             exit;
         }
     }

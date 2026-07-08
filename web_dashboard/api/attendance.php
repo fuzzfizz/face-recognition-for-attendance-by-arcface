@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-$date     = $_GET['date']      ?? date('Y-m-d');
+$date     = $_GET['date']      ?? gmdate('Y-m-d');
 $deviceId = $_GET['device_id'] ?? '';
 $page     = max(1, (int)($_GET['page']     ?? 1));
 $perPage  = max(1, min(100, (int)($_GET['per_page'] ?? 20)));

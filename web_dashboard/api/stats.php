@@ -15,9 +15,9 @@ try {
     $stmt->execute(['pending']);
     $pendingQueue = (int)$stmt->fetchColumn();
 
-    // 3. Today's check-ins
-    $todayStart = date('Y-m-d 00:00:00');
-    $todayEnd = date('Y-m-d 23:59:59');
+    // 3. Today's check-ins (in UTC to match database timestamps)
+    $todayStart = gmdate('Y-m-d 00:00:00');
+    $todayEnd = gmdate('Y-m-d 23:59:59');
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM check_in_logs WHERE timestamp >= ? AND timestamp <= ? AND student_id IS NOT NULL");
     $stmt->execute([$todayStart, $todayEnd]);
     $todayCheckins = (int)$stmt->fetchColumn();
