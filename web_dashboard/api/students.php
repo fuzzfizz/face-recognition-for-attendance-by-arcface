@@ -33,7 +33,8 @@ try {
 
     echo json_encode(['data' => $users]);
 } catch (PDOException $e) {
+    error_log('Students query failed: ' . $e->getMessage());
     http_response_code(503);
-    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error.']);
     exit;
 }

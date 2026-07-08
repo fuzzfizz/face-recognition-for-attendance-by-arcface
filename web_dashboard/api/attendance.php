@@ -72,7 +72,8 @@ try {
         'page'  => $page,
     ]);
 } catch (PDOException $e) {
+    error_log('Attendance query failed: ' . $e->getMessage());
     http_response_code(503);
-    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error.']);
     exit;
 }

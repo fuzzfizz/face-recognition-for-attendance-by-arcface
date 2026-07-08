@@ -37,7 +37,8 @@ try {
 
     echo json_encode(['data' => $rows]);
 } catch (PDOException $e) {
+    error_log('Queue query failed: ' . $e->getMessage());
     http_response_code(503);
-    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error.']);
     exit;
 }
