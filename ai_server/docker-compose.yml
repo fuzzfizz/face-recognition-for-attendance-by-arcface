@@ -2,11 +2,12 @@ version: "3.8"
 
 services:
   face-recognition-ai:
-    build: .
     image: athit0900/face-recognition-ai-server:latest
     container_name: face-recognition-ai-server
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - DB_MODE=${DB_MODE:-mysql}
       - MYSQL_URL=${MYSQL_URL:-}
