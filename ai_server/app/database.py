@@ -212,6 +212,7 @@ def insert_queue_item(student_id, image_path):
                 item.image_path = image_path
                 session.commit()
                 return True
+            session.rollback()
             return False
         else:
             item = _QueueModel(student_id=student_id, image_path=image_path, status="pending")
