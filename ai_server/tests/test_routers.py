@@ -192,9 +192,8 @@ def test_v1_users_list(mock_get_all):
     assert response.json()[0]["student_id"] == "S123"
 
 @patch("app.routers.v1.users.upload_image")
-@patch("app.routers.v1.users.insert_queue_item")
-def test_v1_user_image_upload(mock_insert_queue, mock_upload):
-    mock_upload.return_value = "/path/to/img.jpg"
+def test_v1_user_image_upload(mock_upload):
+    mock_upload.return_value = 1
     
     response = client.post(
         "/v1/users/123/images",
@@ -204,7 +203,6 @@ def test_v1_user_image_upload(mock_insert_queue, mock_upload):
     assert response.status_code == 201
     assert response.json()["status"] == "success"
     mock_upload.assert_called_once()
-    mock_insert_queue.assert_called_once_with("123", "/path/to/img.jpg")
 
 
 @patch("app.dependencies.ADMIN_KEY", "secret")

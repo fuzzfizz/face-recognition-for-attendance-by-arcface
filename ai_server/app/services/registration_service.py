@@ -5,7 +5,6 @@ from app.database import (
     upsert_user,
     get_user_by_student_id,
     upload_image,
-    insert_queue_item,
     get_all_embeddings,
     save_all_embeddings,
     delete_student_from_db,
@@ -160,13 +159,10 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
 
     queue_count = 0
     for filename, file_bytes in decoded_images:
-        ext = filename.split(".")[-1] if filename and "." in filename else "jpg"
-
-        image_path = upload_image(file_bytes, student_id, ext)
-        if not image_path:
+        queue_id = upload_image(file_bytes, student_id)
+        if queue_id is None:
             continue
 
-        insert_queue_item(student_id, image_path)
         queue_count += 1
 
     if queue_count == 0:

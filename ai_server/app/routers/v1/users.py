@@ -6,7 +6,6 @@ from app.database import (
     upsert_user,
     get_all_embeddings,
     upload_image,
-    insert_queue_item,
 )
 from app.dependencies import require_admin
 from app.schemas import UserCreate, ImageUploadBase64
@@ -62,13 +61,9 @@ async def upload_user_image(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty image data")
 
-    ext = "jpg"
-    image_path = upload_image(file_bytes, student_id, ext)
-    if not image_path:
+    queue_id = upload_image(file_bytes, student_id)
+    if queue_id is None:
         raise HTTPException(status_code=500, detail="Failed to upload image")
-
-    # Create queue entry
-    insert_queue_item(student_id, image_path)
 
     return {
         "status": "success",

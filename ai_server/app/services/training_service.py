@@ -40,7 +40,7 @@ def process_pending_queue(limit: int = 50) -> dict:
 
         for item in student_items:
             try:
-                cv_img = processor.decode_image_path(item["image_path"])
+                cv_img = processor.decode_image(item["image_blob"])
                 if cv_img is None:
                     all_item_statuses.append((item["id"], "failed", "Could not read image file"))
                     continue

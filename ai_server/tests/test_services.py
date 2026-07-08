@@ -20,12 +20,11 @@ from app.services.verification_service import verify_face
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
-@patch("app.services.registration_service.insert_queue_item")
 async def test_register_images_success(
-    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor
+    mock_upload_image, mock_upsert_user, mock_get_processor
 ):
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
-    mock_upload_image.return_value = "http://storage.co/img.jpg"
+    mock_upload_image.return_value = 1
 
     mock_processor = MagicMock()
     mock_processor.decode_image.return_value = MagicMock()
@@ -48,8 +47,7 @@ async def test_register_images_success(
     result = await register_images("S123", "John Doe", [mock_file])
 
     mock_upsert_user.assert_called_once_with("S123", "John Doe")
-    mock_upload_image.assert_called_once_with(b"image_content", "S123", "jpg")
-    mock_insert_queue.assert_called_once_with("S123", "http://storage.co/img.jpg")
+    mock_upload_image.assert_called_once_with(b"image_content", "S123")
     assert result["status"] == "pending"
     assert result["student_id"] == "S123"
 
@@ -180,12 +178,12 @@ async def test_register_images_quota_already_full(
         }
     ]
     mock_get_pending_queue_items.return_value = [
-        {"student_id": "S123", "image_path": "/path/1.jpg"},
-        {"student_id": "S123", "image_path": "/path/2.jpg"},
-        {"student_id": "S123", "image_path": "/path/3.jpg"},
-        {"student_id": "S123", "image_path": "/path/4.jpg"},
-        {"student_id": "S123", "image_path": "/path/5.jpg"},
-        {"student_id": "S456", "image_path": "/path/other.jpg"},
+        {"student_id": "S123", "image_blob": b"fake"},
+        {"student_id": "S123", "image_blob": b"fake"},
+        {"student_id": "S123", "image_blob": b"fake"},
+        {"student_id": "S123", "image_blob": b"fake"},
+        {"student_id": "S123", "image_blob": b"fake"},
+        {"student_id": "S456", "image_blob": b"fake"},
     ]
     
     mock_file = MagicMock(spec=UploadFile)
@@ -286,14 +284,13 @@ async def test_register_images_duplicate_face_different_student(
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
-@patch("app.services.registration_service.insert_queue_item")
 async def test_register_images_duplicate_face_same_student(
-    mock_insert_queue, mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_get_all_embeddings, mock_get_pending_queue_items
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_get_all_embeddings, mock_get_pending_queue_items
 ):
     mock_get_all_embeddings.return_value = []
     mock_get_pending_queue_items.return_value = []
     mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
-    mock_upload_image.return_value = "http://storage.co/img.jpg"
+    mock_upload_image.return_value = 1
     
     mock_processor = MagicMock()
     mock_processor.decode_image.return_value = MagicMock()
@@ -320,7 +317,6 @@ async def test_register_images_duplicate_face_same_student(
     
     assert result["status"] == "pending"
     assert result["student_id"] == "S123"
-    mock_insert_queue.assert_called_once()
 
 
 @patch("app.services.registration_service.get_user_by_student_id")
@@ -346,11 +342,11 @@ def test_process_pending_queue_success(
     mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
 ):
     mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"}
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"}
     ]
     
     mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
     mock_get_processor.return_value = mock_processor
 
@@ -359,7 +355,7 @@ def test_process_pending_queue_success(
     result = process_pending_queue()
 
     mock_get_pending.assert_called_once()
-    mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
+    mock_processor.decode_image.assert_called_once_with(b"fake_bytes_1")
     mock_processor.extract_face_embedding.assert_called_once()
     mock_update_status.assert_called_once_with(1, "completed", None)
     mock_save.assert_called_once()
@@ -378,12 +374,12 @@ def test_process_pending_queue_batching(
     mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
 ):
     mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"},
-        {"id": 2, "student_id": "S123", "image_path": "/path/2.jpg"},
-        {"id": 3, "student_id": "S456", "image_path": "/path/3.jpg"}
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"},
+        {"id": 2, "student_id": "S123", "image_blob": b"fake_bytes_2"},
+        {"id": 3, "student_id": "S456", "image_blob": b"fake_bytes_3"}
     ]
     mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
     mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
     mock_get_processor.return_value = mock_processor
     mock_get_all.return_value = []
@@ -573,13 +569,13 @@ def test_process_pending_queue_embedding_appending_and_capping(
     
     # We will process 3 pending images for S123
     mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"},
-        {"id": 2, "student_id": "S123", "image_path": "/path/2.jpg"},
-        {"id": 3, "student_id": "S123", "image_path": "/path/3.jpg"}
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"},
+        {"id": 2, "student_id": "S123", "image_blob": b"fake_bytes_2"},
+        {"id": 3, "student_id": "S123", "image_blob": b"fake_bytes_3"}
     ]
     
     mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
     mock_processor.extract_face_embedding.side_effect = [
         {"embedding": [0.2] * 512},
         {"embedding": [0.3] * 512},
@@ -706,11 +702,11 @@ def test_process_pending_queue_validation_failure(
     mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
 ):
     mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"}
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"}
     ]
     
     mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": False,
         "failed_step": 1,
@@ -725,7 +721,7 @@ def test_process_pending_queue_validation_failure(
 
     result = process_pending_queue()
 
-    mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
+    mock_processor.decode_image.assert_called_once_with(b"fake_bytes_1")
     mock_processor.validate_image_quality.assert_called_once()
     mock_processor.extract_face_embedding.assert_not_called()
     mock_update_status.assert_called_once_with(1, "failed", "Face not found, please retake")
@@ -746,11 +742,11 @@ def test_process_pending_queue_duplicate_face(
     mock_match_face, mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending
 ):
     mock_get_pending.return_value = [
-        {"id": 1, "student_id": "S123", "image_path": "/path/1.jpg"}
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"}
     ]
     
     mock_processor = MagicMock()
-    mock_processor.decode_image_path.return_value = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
     mock_processor.validate_image_quality.return_value = {
         "passed": True,
         "results": {
@@ -773,7 +769,7 @@ def test_process_pending_queue_duplicate_face(
 
     result = process_pending_queue()
 
-    mock_processor.decode_image_path.assert_called_once_with("/path/1.jpg")
+    mock_processor.decode_image.assert_called_once_with(b"fake_bytes_1")
     mock_processor.validate_image_quality.assert_called_once()
     mock_processor.extract_face_embedding.assert_called_once()
     mock_match_face.assert_called_once_with([0.1] * 512)
