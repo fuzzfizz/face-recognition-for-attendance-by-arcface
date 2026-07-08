@@ -44,7 +44,7 @@ class CheckInLog(Base):
     student_id = Column(String(20), nullable=True)
     similarity_score = Column(Float, nullable=True)
     device_id = Column(String(50), nullable=True)
-    error_message = Column(String, nullable=True)
+    error_message = Column(String(255), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="logs")

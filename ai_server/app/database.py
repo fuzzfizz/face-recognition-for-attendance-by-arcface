@@ -30,7 +30,15 @@ def _init_sql_db():
             "Please configure it to point to your MySQL database."
         )
 
-    _engine = create_engine(MYSQL_URL)
+    if MYSQL_URL.startswith("sqlite://"):
+        from sqlalchemy.pool import StaticPool
+        _engine = create_engine(
+            MYSQL_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool
+        )
+    else:
+        _engine = create_engine(MYSQL_URL)
     _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
     Base.metadata.create_all(bind=_engine)
 
