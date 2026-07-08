@@ -11,7 +11,7 @@ class ApiConstants {
   static const String health = '/';
 
   // App constants
-  static const int requiredPhotos = 10;
+  static const int requiredPhotos = 1;
   static const int maxPhotosPerUpload = 3;
   static const double faceConfidenceThreshold = 0.8;
 

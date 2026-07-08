@@ -4,7 +4,7 @@ class CaptureViewModel extends ChangeNotifier {
   final int _requiredPhotos;
   final List<String> _capturedPaths = [];
 
-  CaptureViewModel({int requiredPhotos = 10})
+  CaptureViewModel({int requiredPhotos = 1})
     : _requiredPhotos = requiredPhotos;
 
   List<String> get capturedPaths => List.unmodifiable(_capturedPaths);
