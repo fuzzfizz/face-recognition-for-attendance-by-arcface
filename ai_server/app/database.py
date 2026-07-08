@@ -48,6 +48,10 @@ def get_db():
     finally:
         db.close()
 
+def _get_sqlite_session():
+    return get_db()
+
+
 def upsert_user(student_id: str, name: str = None):
     session = _get_db_session()
     try:

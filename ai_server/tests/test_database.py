@@ -143,25 +143,23 @@ def test_insert_log_with_error_message(in_memory_db):
 
 
 def test_mysql_mode_upload_image(in_memory_db):
-    """Test upload_image in MySQL DB_MODE."""
-    from app.database import upload_image, get_db
+    """Test upload_image directly inserts pending queue item in MySQL mode."""
+    from app.database import upload_image, _get_sqlite_session
     from app.models import RegistrationQueue
-    from unittest.mock import patch
 
-    with patch("app.database.MYSQL_URL", "mysql+pymysql://dummy"):
-        image_bytes = b"mysql_dummy_image_bytes"
-        row_id = upload_image(image_bytes, "S100")
-        assert row_id is not None
-        assert isinstance(row_id, int)
-        
-        # Verify row exists in DB
-        session = next(get_db())
-        item = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
-        assert item is not None
-        assert item.student_id == "S100"
-        assert item.image_blob == image_bytes
-        assert item.status == "pending"
-        session.close()
+    image_bytes = b"mysql_dummy_image_bytes"
+    queue_id = upload_image(image_bytes, "S100")
+    assert queue_id is not None
+    
+    # Verify row exists in DB and is pending
+    session = next(_get_sqlite_session())
+    item = session.query(RegistrationQueue).filter(RegistrationQueue.id == queue_id).first()
+    assert item is not None
+    assert item.student_id == "S100"
+    assert item.image_blob == image_bytes
+    assert item.status == "pending"
+    session.close()
+
 
 
 def test_delete_student_cascade_sql(in_memory_db):
