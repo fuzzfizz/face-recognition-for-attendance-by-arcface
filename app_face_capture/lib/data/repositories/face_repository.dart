@@ -16,6 +16,9 @@ class FaceRepository {
     String studentName,
     List<File> images,
   ) async {
+    if (images.isEmpty) {
+      throw ArgumentError('Images list cannot be empty');
+    }
     final batches = _batchImages(images, ApiConstants.maxPhotosPerUpload);
     RegistrationResponse? lastResponse;
 
