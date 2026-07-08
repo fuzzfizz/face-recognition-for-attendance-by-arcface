@@ -4,7 +4,8 @@ A PHP dashboard for the face recognition attendance system.
 
 ## Requirements
 - PHP 8.0+
-- Access to your Supabase project
+- PHP 8.0+ with pdo_mysql extension
+- Access to your MySQL database (face_attendance)
 
 ## Setup
 
@@ -13,9 +14,9 @@ A PHP dashboard for the face recognition attendance system.
    cp config.example.php config.php
    ```
 
-2. Edit `config.php` and fill in your Supabase URL and Service Role Key.
+2. Edit `config.php` and fill in your MySQL host, database, user, and password.
    > [!IMPORTANT]
-   > Use the **Service Role Key** (not the anon key) – found in your Supabase project under Settings → API.
+   > Ensure the database is running and reachable from the dashboard machine.
    >
    > **Security Note:** `config.php` contains sensitive credentials and must **NEVER** be committed to Git. The project `.gitignore` file is pre-configured to exclude `config.php` from version control.
 

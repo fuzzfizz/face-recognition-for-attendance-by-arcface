@@ -7,7 +7,7 @@ if (!file_exists(__DIR__ . '/config.php')) {
     h1{color:#a78bfa;margin-bottom:12px}pre{background:#0f1117;padding:12px;border-radius:6px;font-size:13px;margin:8px 0}
     </style></head><body><div class="box">
     <h1>Setup Required</h1>
-    <p>Copy <code>config.example.php</code> to <code>config.php</code> and fill in your Supabase credentials:</p>
+    <p>Copy <code>config.example.php</code> to <code>config.php</code> and fill in your database credentials:</p>
     <pre>cp config.example.php config.php</pre>
     </div></body></html>';
     exit;
@@ -47,7 +47,7 @@ if (!file_exists(__DIR__ . '/config.php')) {
 
 <!-- Error Banner -->
 <div class="error-banner" id="error-banner">
-  <span id="error-msg">Could not reach Supabase. Retrying...</span>
+  <span id="error-msg">Could not reach database. Retrying...</span>
   <button onclick="document.getElementById('error-banner').classList.remove('visible')">✕</button>
 </div>
 
