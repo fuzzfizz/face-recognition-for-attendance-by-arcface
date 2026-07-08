@@ -62,9 +62,8 @@ def test_get_latest_check_in_log_nonexistent(in_memory_db):
     assert res is None
 
 
-def test_delete_student_sqlite(in_memory_db, tmp_path):
-    """Test that delete_student_from_db deletes student records and associated files in SQLite mode."""
-    import os
+def test_delete_student_sqlite(in_memory_db):
+    """Test delete_student_from_db cascade deletion of user and queue items."""
     from app.database import (
         delete_student_from_db,
         insert_queue_item,
@@ -73,21 +72,14 @@ def test_delete_student_sqlite(in_memory_db, tmp_path):
     )
     from app.models import User, RegistrationQueue
 
-    # 1. Setup: insert user and queue items, and create physical dummy files on disk
+    # 1. Setup: insert user and queue items
     upsert_user("S999", "Test Delete User")
     
-    # Let's get the user id
     session = next(_get_sqlite_session())
     user = session.query(User).filter(User.student_id == "S999").first()
     assert user is not None
 
-    # Create dummy file
-    queue_img_file = tmp_path / "queue_img.jpg"
-    queue_img_file.write_bytes(b"dummy queue data")
-
-    assert os.path.exists(queue_img_file)
-
-    insert_queue_item("S999", str(queue_img_file))
+    insert_queue_item("S999", b"dummy queue data")
     session.close()
 
     # 2. Perform deletion
@@ -102,9 +94,6 @@ def test_delete_student_sqlite(in_memory_db, tmp_path):
     queue_after = session.query(RegistrationQueue).filter(RegistrationQueue.student_id == "S999").all()
     assert len(queue_after) == 0
     session.close()
-
-    # 4. Verify physical files are deleted
-    assert not os.path.exists(queue_img_file)
 
 
 def test_sqlite_foreign_keys_pragma(in_memory_db):
@@ -153,9 +142,8 @@ def test_sqlite_foreign_keys_enforcement(in_memory_db):
     session.close()
 
 
-def test_delete_student_sqlite_transaction_safety(in_memory_db, tmp_path):
-    """Test that if SQLite commit fails, local files are NOT deleted on disk."""
-    import os
+def test_delete_student_sqlite_transaction_safety(in_memory_db):
+    """Test that if SQLite commit fails, the database rollback works and records are kept."""
     from unittest.mock import patch
     from app.database import (
         delete_student_from_db,
@@ -166,23 +154,14 @@ def test_delete_student_sqlite_transaction_safety(in_memory_db, tmp_path):
     from app.models import User, RegistrationQueue
     from sqlalchemy.orm import Session
 
-    # Setup: insert user and queue item with a dummy image
+    # Setup: insert user and queue item
     upsert_user("S999_FAIL", "Test Delete User Fail")
-    
-    queue_img_file = tmp_path / "queue_img_fail.jpg"
-    queue_img_file.write_bytes(b"dummy queue data")
-    
-    insert_queue_item("S999_FAIL", str(queue_img_file))
-
-    assert os.path.exists(queue_img_file)
+    insert_queue_item("S999_FAIL", b"dummy queue data")
 
     # Patch Session.commit to raise an exception
     with patch.object(Session, 'commit', side_effect=Exception("Simulated commit failure")):
         success = delete_student_from_db("S999_FAIL")
         assert success is False
-
-    # Verify physical file is NOT deleted!
-    assert os.path.exists(queue_img_file)
 
     # Verify database record is still present (rollback succeeded)
     session = next(_get_sqlite_session())
@@ -308,7 +287,6 @@ def test_mysql_mode_upload_image_and_insert_queue_item(in_memory_db):
         item_updated = session.query(RegistrationQueue).filter(RegistrationQueue.id == row_id).first()
         assert item_updated is not None
         assert item_updated.status == "pending"
-        assert item_updated.image_path == ref_path
         session.close()
 
 
@@ -358,7 +336,7 @@ def test_delete_student_cascade_sql(in_memory_db):
     session.commit()
     u_id = user.id
 
-    q_item = RegistrationQueue(student_id="S102", image_path="db://registration_queue/1", status="pending")
+    q_item = RegistrationQueue(student_id="S102", image_blob=b"dummy_blob", status="pending")
     session.add(q_item)
     
     log1 = CheckInLog(student_id="S102", similarity_score=0.9, device_id="D1")

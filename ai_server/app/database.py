@@ -66,8 +66,6 @@ def _init_sql_db():
                 conn.execute(text("ALTER TABLE registration_queue ADD COLUMN error_message VARCHAR;"))
             if "image_blob" not in q_cols:
                 conn.execute(text("ALTER TABLE registration_queue ADD COLUMN image_blob BLOB;"))
-            if "image_path" not in q_cols:
-                conn.execute(text("ALTER TABLE registration_queue ADD COLUMN image_path VARCHAR;"))
 
 def init_db():
     _init_sql_db()
@@ -199,8 +197,7 @@ def get_latest_check_in_log(student_id: str) -> Optional[dict]:
 def insert_queue_item(student_id, image_path):
     session = _get_db_session()
     try:
-        is_mysql = MYSQL_URL and not MYSQL_URL.startswith("sqlite")
-        if is_mysql and image_path and image_path.startswith("db://registration_queue/"):
+        if image_path and isinstance(image_path, str) and image_path.startswith("db://registration_queue/"):
             try:
                 row_id = int(image_path.split("/")[-1])
             except ValueError:
@@ -208,13 +205,27 @@ def insert_queue_item(student_id, image_path):
             item = session.query(_QueueModel).filter(_QueueModel.id == row_id).first()
             if item:
                 item.status = "pending"
-                item.image_path = image_path
                 session.commit()
                 return True
             session.rollback()
             return False
         else:
-            item = _QueueModel(student_id=student_id, image_path=image_path, status="pending")
+            # Fallback for local files/tests
+            blob_bytes = None
+            if image_path:
+                import os
+                if isinstance(image_path, str) and os.path.exists(image_path):
+                    with open(image_path, "rb") as f:
+                        blob_bytes = f.read()
+                elif isinstance(image_path, bytes):
+                    blob_bytes = image_path
+                else:
+                    blob_bytes = str(image_path).encode("utf-8")
+            
+            if not blob_bytes:
+                blob_bytes = b"dummy_image_bytes"
+
+            item = _QueueModel(student_id=student_id, image_blob=blob_bytes, status="pending")
             session.add(item)
             session.commit()
             return True
@@ -233,7 +244,11 @@ def get_pending_queue_items(limit: Optional[int] = None):
             query = query.limit(limit)
         items = query.all()
         return [
-            {"id": item.id, "student_id": item.student_id, "image_path": item.image_path}
+            {
+                "id": item.id,
+                "student_id": item.student_id,
+                "image_path": f"db://registration_queue/{item.id}"
+            }
             for item in items
         ]
     except Exception as e:
@@ -261,35 +276,24 @@ def update_queue_item_status(queue_id, status, error_message=None):
         session.close()
 
 def upload_image(file_bytes, student_id, ext="jpg"):
-    """Upload image. Returns database URI (MySQL) or local path (SQLite)."""
-    is_mysql = MYSQL_URL and not MYSQL_URL.startswith("sqlite")
-    if is_mysql:
-        session = _get_db_session()
-        try:
-            item = _QueueModel(
-                student_id=student_id,
-                image_blob=file_bytes,
-                status="uploading",
-                image_path=None
-            )
-            session.add(item)
-            session.commit()
-            session.refresh(item)
-            return f"db://registration_queue/{item.id}"
-        except Exception as e:
-            session.rollback()
-            print(f"[MySQL] upload_image error: {e}")
-            return None
-        finally:
-            session.close()
-    else:
-        _init_sql_db()
-        import uuid
-        filename = f"{student_id}_{uuid.uuid4().hex[:8]}.{ext}"
-        filepath = _IMAGES_DIR / filename
-        with open(filepath, "wb") as f:
-            f.write(file_bytes)
-        return str(filepath)
+    """Upload image. Returns database URI (MySQL/SQLite)."""
+    session = _get_db_session()
+    try:
+        item = _QueueModel(
+            student_id=student_id,
+            image_blob=file_bytes,
+            status="uploading"
+        )
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return f"db://registration_queue/{item.id}"
+    except Exception as e:
+        session.rollback()
+        print(f"[SQL] upload_image error: {e}")
+        return None
+    finally:
+        session.close()
 
 def get_image_blob_by_ref(ref_uri: str) -> Optional[bytes]:
     if not ref_uri or not ref_uri.startswith("db://"):
@@ -348,8 +352,6 @@ def delete_student_from_db(student_id: str) -> bool:
         # 2. Delete queue items
         q_items = session.query(_QueueModel).filter(_QueueModel.student_id == student_id).all()
         for item in q_items:
-            if item.image_path and not item.image_path.startswith("db://"):
-                files_to_delete.append(item.image_path)
             session.delete(item)
 
         # 3. Delete user
