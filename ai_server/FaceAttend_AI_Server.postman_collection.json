@@ -1,7 +1,7 @@
-﻿{
+{
   "info": {
     "name": "FaceAttend AI Server",
-    "description": "ArcFace + Supabase hybrid attendance system — v5.0.0\n\n## Setup\n1. Set the `base_url` variable to your server address (e.g. `http://localhost:8000`).\n2. Set `admin_key` to your `ADMIN_API_KEY` environment variable value.\n3. Admin-protected endpoints (`POST /train-now`, `DELETE /register/student/:id`) require the `X-Admin-Key` header — it is pre-filled from the `admin_key` variable.\n\n## Flow\n1. Health check → confirm server is up\n2. Register → upload face images for a student\n3. Check Status → poll until completed\n4. Train Now → force-process pending queue (admin only)\n5. Verify → send a live face image to check attendance\n6. Logs → retrieve recent check-in logs\n7. Delete Student → remove student data (admin only)",
+    "description": "ArcFace attendance system backed by MySQL — v6.0.0\n\n## Setup\n1. Set the `base_url` variable to your server address (e.g. `http://localhost:8000`).\n2. Set `admin_key` to your `ADMIN_API_KEY` environment variable value.\n3. Admin-protected endpoints (`POST /train-now`, `DELETE /register/student/:id`) require the `X-Admin-Key` header — it is pre-filled from the `admin_key` variable.\n\n## Flow\n1. Health check → confirm server is up\n2. Register → upload face images for a student\n3. Check Status → poll until completed\n4. Train Now → force-process pending queue (admin only)\n5. Verify → send a live face image to check attendance\n6. Logs → retrieve recent check-in logs\n7. Delete Student → remove student data (admin only)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -38,7 +38,7 @@
               "host": ["{{base_url}}"],
               "path": [""]
             },
-            "description": "Returns server status and storage mode (supabase or sqlite).\n\nExample response:\n```json\n{ \"status\": \"ok\", \"mode\": \"supabase\" }\n```"
+            "description": "Returns server status and database mode.\n\nExample response:\n```json\n{ \"status\": \"ok\", \"mode\": \"mysql\" }\n```"
           },
           "response": [
             {
@@ -46,7 +46,7 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/" } },
-              "body": "{\"status\": \"ok\", \"mode\": \"supabase\"}"
+              "body": "{\"status\": \"ok\", \"mode\": \"mysql\"}"
             }
           ]
         }
@@ -140,7 +140,7 @@
               "host": ["{{base_url}}"],
               "path": ["register", "student", "{{student_id}}"]
             },
-            "description": "Permanently deletes a student's users record, registration queue records, face embedding file, and Supabase Storage images.\n\nCheck-in log history is PRESERVED for auditing.\n\nRequires X-Admin-Key header."
+            "description": "Permanently deletes a student's users record, registration queue records, and face embedding file.\n\nCheck-in log history is PRESERVED for auditing.\n\nRequires X-Admin-Key header."
           },
           "response": [
             {
