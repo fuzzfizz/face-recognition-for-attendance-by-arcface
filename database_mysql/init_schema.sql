@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS registration_queue (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(50) NOT NULL,
-    image_blob LONGBLOB NOT NULL,
+    image_path VARCHAR(255) NULL,
+    image_blob LONGBLOB NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     error_message TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
