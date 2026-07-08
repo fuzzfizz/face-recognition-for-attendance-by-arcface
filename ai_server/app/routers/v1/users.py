@@ -61,6 +61,7 @@ async def upload_user_image(
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty image data")
 
+    # Directly upload image to MySQL blob storage and queue it as "pending"
     queue_id = upload_image(file_bytes, student_id)
     if queue_id is None:
         raise HTTPException(status_code=500, detail="Failed to upload image")

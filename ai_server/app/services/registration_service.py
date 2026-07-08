@@ -159,6 +159,7 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
 
     queue_count = 0
     for filename, file_bytes in decoded_images:
+        # Directly upload image to MySQL blob storage and queue it as "pending"
         queue_id = upload_image(file_bytes, student_id)
         if queue_id is None:
             continue
