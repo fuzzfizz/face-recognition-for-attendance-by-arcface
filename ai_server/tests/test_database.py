@@ -445,5 +445,25 @@ def test_mysql_mode_process_training_queue_blob_migration(in_memory_db):
         session.close()
 
 
+def test_database_rollback_on_write_error(in_memory_db):
+    """Test that database write operations call session.rollback() on failure."""
+    from unittest.mock import patch, MagicMock
+    from app.database import upsert_user
+
+    # Create a mock session that raises an exception on commit
+    mock_session = MagicMock()
+    mock_session.commit.side_effect = Exception("Database write failed")
+
+    with patch("app.database._get_db_session", return_value=mock_session):
+        with pytest.raises(Exception, match="Database write failed"):
+            upsert_user("S_ERROR", "Error User")
+
+        # Verify rollback was called
+        mock_session.rollback.assert_called_once()
+        # Verify close was called
+        mock_session.close.assert_called_once()
+
+
+
 
 

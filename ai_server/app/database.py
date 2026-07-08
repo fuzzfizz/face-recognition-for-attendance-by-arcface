@@ -77,9 +77,12 @@ def init_db():
 def _init_sqlite():
     _init_sql_db()
 
-def _get_sqlite_session():
+def _get_db_session():
     _init_sql_db()
-    db = _SessionLocal()
+    return _SessionLocal()
+
+def _get_sqlite_session():
+    db = _get_db_session()
     try:
         yield db
     finally:
@@ -89,8 +92,7 @@ def get_db():
     return _get_sqlite_session()
 
 def upsert_user(student_id: str, name: str = None):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
         if not user:
@@ -103,15 +105,20 @@ def upsert_user(student_id: str, name: str = None):
             session.commit()
             session.refresh(user)
         return {"id": user.id, "student_id": user.student_id, "name": user.name}
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
 def get_user_by_student_id(student_id: str):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         user = session.query(_UserModel).filter(_UserModel.student_id == student_id).first()
         return {"id": user.id, "student_id": user.student_id} if user else None
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
@@ -122,8 +129,7 @@ def insert_log(
     user_id: Optional[int] = None,
     error_message: Optional[str] = None
 ):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         actual_user_id = None
         if student_id:
@@ -142,14 +148,14 @@ def insert_log(
         session.commit()
         return True
     except Exception as e:
+        session.rollback()
         print(f"[SQL] insert_log error: {e}")
         return False
     finally:
         session.close()
 
 def get_logs(limit=50):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         logs = session.query(_LogModel).order_by(_LogModel.timestamp.desc()).limit(limit).all()
         return [
@@ -163,12 +169,14 @@ def get_logs(limit=50):
             }
             for log in logs
         ]
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
 def get_latest_check_in_log(student_id: str) -> Optional[dict]:
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         log = session.query(_LogModel) \
             .filter(_LogModel.student_id == student_id) \
@@ -184,12 +192,14 @@ def get_latest_check_in_log(student_id: str) -> Optional[dict]:
                 "error_message": log.error_message
             }
         return None
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
 def insert_queue_item(student_id, image_path):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         if DB_MODE == "mysql" and image_path and image_path.startswith("db://registration_queue/"):
             try:
@@ -209,15 +219,14 @@ def insert_queue_item(student_id, image_path):
             session.commit()
             return True
     except Exception as e:
-        print(f"[SQL] insert_queue_item error: {e}")
         session.rollback()
+        print(f"[SQL] insert_queue_item error: {e}")
         return False
     finally:
         session.close()
 
 def get_pending_queue_items(limit: Optional[int] = None):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         query = session.query(_QueueModel).filter(_QueueModel.status == "pending")
         if limit is not None:
@@ -227,12 +236,14 @@ def get_pending_queue_items(limit: Optional[int] = None):
             {"id": item.id, "student_id": item.student_id, "image_path": item.image_path}
             for item in items
         ]
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
 def update_queue_item_status(queue_id, status, error_message=None):
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         item = session.query(_QueueModel).filter(_QueueModel.id == queue_id).first()
         if item:
@@ -243,14 +254,16 @@ def update_queue_item_status(queue_id, status, error_message=None):
             session.commit()
             return True
         return False
+    except Exception as e:
+        session.rollback()
+        raise e
     finally:
         session.close()
 
 def upload_image(file_bytes, student_id, ext="jpg"):
     """Upload image. Returns database URI (MySQL) or local path (SQLite)."""
     if DB_MODE == "mysql":
-        _init_sql_db()
-        session = next(_get_sqlite_session())
+        session = _get_db_session()
         try:
             item = _QueueModel(
                 student_id=student_id,
@@ -263,8 +276,8 @@ def upload_image(file_bytes, student_id, ext="jpg"):
             session.refresh(item)
             return f"db://registration_queue/{item.id}"
         except Exception as e:
-            print(f"[MySQL] upload_image error: {e}")
             session.rollback()
+            print(f"[MySQL] upload_image error: {e}")
             return None
         finally:
             session.close()
@@ -293,12 +306,12 @@ def get_image_blob_by_ref(ref_uri: str) -> Optional[bytes]:
     if table_name != "registration_queue":
         return None
 
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         item = session.query(_QueueModel).filter(_QueueModel.id == row_id).first()
         return item.image_blob if item else None
     except Exception as e:
+        session.rollback()
         print(f"[SQL] get_image_blob_by_ref error: {e}")
         return None
     finally:
@@ -314,8 +327,7 @@ def match_face_embedding(query_embedding):
     return match_face(query_embedding)
 
 def delete_student_from_db(student_id: str) -> bool:
-    _init_sql_db()
-    session = next(_get_sqlite_session())
+    session = _get_db_session()
     try:
         import os
         files_to_delete = []
@@ -355,8 +367,8 @@ def delete_student_from_db(student_id: str) -> bool:
 
         return True
     except Exception as e:
-        print(f"[SQL] delete_student_from_db error: {e}")
         session.rollback()
+        print(f"[SQL] delete_student_from_db error: {e}")
         return False
     finally:
         session.close()
