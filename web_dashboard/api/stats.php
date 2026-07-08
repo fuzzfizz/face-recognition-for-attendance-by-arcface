@@ -3,35 +3,34 @@ require_once __DIR__ . '/../config.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-
-
-// Today's date range in UTC
-$todayStart = gmdate('Y-m-d') . 'T00:00:00Z';
-$todayEnd   = gmdate('Y-m-d') . 'T23:59:59Z';
-
 try {
-    // Fetch all counts
-    $totalStudents  = supabase_count('users');
-    $pendingQueue   = supabase_count('registration_queue', ['status' => 'eq.pending']);
+    $pdo = get_db_connection();
 
-    // Today's check-ins count
-    $todayCheckins = supabase_count('check_in_logs', [
-        'timestamp'  => 'gte.' . $todayStart,
-        'student_id' => 'not.is.null',
-        'and'        => '(timestamp.lte.' . $todayEnd . ')',
-    ]);
+    // 1. Total students count
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+    $totalStudents = (int)$stmt->fetchColumn();
 
-    // Last check-in
-    $lastRes = supabase_get('check_in_logs', [
-        'select'     => 'student_id,timestamp',
-        'student_id' => 'not.is.null',
-        'order'      => 'timestamp.desc',
-        'limit'      => '1',
-    ]);
-    if ($lastRes['error']) {
-        throw new Exception("Last check-in query failed: " . $lastRes['error']);
+    // 2. Pending queue count
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM registration_queue WHERE status = ?");
+    $stmt->execute(['pending']);
+    $pendingQueue = (int)$stmt->fetchColumn();
+
+    // 3. Today's check-ins
+    $todayStart = date('Y-m-d 00:00:00');
+    $todayEnd = date('Y-m-d 23:59:59');
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM check_in_logs WHERE timestamp >= ? AND timestamp <= ? AND student_id IS NOT NULL");
+    $stmt->execute([$todayStart, $todayEnd]);
+    $todayCheckins = (int)$stmt->fetchColumn();
+
+    // 4. Last check-in
+    $stmt = $pdo->query("SELECT student_id, timestamp FROM check_in_logs WHERE student_id IS NOT NULL ORDER BY timestamp DESC LIMIT 1");
+    $lastCheckin = $stmt->fetch();
+    if (!$lastCheckin) {
+        $lastCheckin = null;
+    } else {
+        // Format timestamp to ISO 8601 to match frontend expectations
+        $lastCheckin['timestamp'] = str_replace(' ', 'T', $lastCheckin['timestamp']) . 'Z';
     }
-    $lastCheckin = !empty($lastRes['data']) ? $lastRes['data'][0] : null;
 
     echo json_encode([
         'total_students' => $totalStudents,
@@ -39,8 +38,8 @@ try {
         'pending_queue'  => $pendingQueue,
         'last_checkin'   => $lastCheckin,
     ]);
-} catch (Exception $e) {
+} catch (PDOException $e) {
     http_response_code(503);
-    echo json_encode(['error' => 'Supabase query error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
     exit;
 }

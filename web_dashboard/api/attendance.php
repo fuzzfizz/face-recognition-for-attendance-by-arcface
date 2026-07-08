@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-$date     = $_GET['date']      ?? gmdate('Y-m-d');
+$date     = $_GET['date']      ?? date('Y-m-d');
 $deviceId = $_GET['device_id'] ?? '';
 $page     = max(1, (int)($_GET['page']     ?? 1));
 $perPage  = max(1, min(100, (int)($_GET['per_page'] ?? 20)));
@@ -16,74 +16,63 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
     exit;
 }
 
-$dayStart = $date . 'T00:00:00Z';
-$dayEnd   = $date . 'T23:59:59Z';
+$dayStart = $date . ' 00:00:00';
+$dayEnd   = $date . ' 23:59:59';
 
 try {
-    // Build query params for check_in_logs
-    $params = [
-        'select'     => 'id,student_id,similarity_score,device_id,timestamp',
-        'timestamp'  => 'gte.' . $dayStart,
-        'student_id' => 'not.is.null',
-        'and'        => '(timestamp.lte.' . $dayEnd . ')',
-        'order'      => 'timestamp.desc',
-        'limit'      => (string)$perPage,
-        'offset'     => (string)$offset,
-    ];
+    $pdo = get_db_connection();
+
+    $sql = "SELECT l.id, l.student_id, l.similarity_score, l.device_id, l.timestamp, u.name
+            FROM check_in_logs l
+            LEFT JOIN users u ON l.student_id = u.student_id
+            WHERE l.timestamp >= :day_start AND l.timestamp <= :day_end AND l.student_id IS NOT NULL";
+    
+    $countSql = "SELECT COUNT(*) FROM check_in_logs l WHERE l.timestamp >= :day_start AND l.timestamp <= :day_end AND l.student_id IS NOT NULL";
+
     if ($deviceId !== '') {
-        $params['device_id'] = 'eq.' . $deviceId;
+        $sql .= " AND l.device_id = :device_id";
+        $countSql .= " AND l.device_id = :device_id";
     }
 
-    $logsRes = supabase_get('check_in_logs', $params);
-    if ($logsRes['error']) {
-        throw new Exception('Supabase unavailable: ' . $logsRes['error']);
+    $sql .= " ORDER BY l.timestamp DESC LIMIT :limit OFFSET :offset";
+
+    // Bind values
+    $stmt = $pdo->prepare($sql);
+    $stmt->bindValue(':day_start', $dayStart, PDO::PARAM_STR);
+    $stmt->bindValue(':day_end', $dayEnd, PDO::PARAM_STR);
+    if ($deviceId !== '') {
+        $stmt->bindValue(':device_id', $deviceId, PDO::PARAM_STR);
     }
+    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $logs = $stmt->fetchAll();
 
-    $logs = $logsRes['data'];
-
-    // Fetch user names for all student_ids in this page
-    $studentIds = array_unique(array_column($logs, 'student_id'));
-    $nameMap = [];
-    if (!empty($studentIds)) {
-        // Supabase REST: filter by array using in.(id1,id2,...)
-        $inFilter = 'in.(' . implode(',', array_map('urlencode', $studentIds)) . ')';
-        $usersRes = supabase_get('users', [
-            'select'     => 'student_id,name',
-            'student_id' => $inFilter,
-        ]);
-        if ($usersRes['error']) {
-            throw new Exception('Supabase unavailable: ' . $usersRes['error']);
-        }
-        foreach ($usersRes['data'] as $user) {
-            $nameMap[$user['student_id']] = $user['name'];
-        }
+    // Bind count values
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->bindValue(':day_start', $dayStart, PDO::PARAM_STR);
+    $countStmt->bindValue(':day_end', $dayEnd, PDO::PARAM_STR);
+    if ($deviceId !== '') {
+        $countStmt->bindValue(':device_id', $deviceId, PDO::PARAM_STR);
     }
+    $countStmt->execute();
+    $total = (int)$countStmt->fetchColumn();
 
-    // Merge name into each log row
+    // Format timestamps to match ISO format
     foreach ($logs as &$log) {
-        $log['name'] = $nameMap[$log['student_id']] ?? null;
+        if ($log['timestamp']) {
+            $log['timestamp'] = str_replace(' ', 'T', $log['timestamp']) . 'Z';
+        }
     }
     unset($log);
-
-    // Count total matching rows for pagination
-    $countParams = [
-        'select'     => 'id',
-        'timestamp'  => 'gte.' . $dayStart,
-        'student_id' => 'not.is.null',
-        'and'        => '(timestamp.lte.' . $dayEnd . ')',
-    ];
-    if ($deviceId !== '') {
-        $countParams['device_id'] = 'eq.' . $deviceId;
-    }
-    $total = supabase_count('check_in_logs', $countParams);
 
     echo json_encode([
         'data'  => $logs,
         'total' => $total,
         'page'  => $page,
     ]);
-} catch (Exception $e) {
+} catch (PDOException $e) {
     http_response_code(503);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
     exit;
 }

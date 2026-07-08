@@ -4,26 +4,40 @@ header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
 try {
+    $pdo = get_db_connection();
+
     $status = $_GET['status'] ?? '';
     $allowed = ['pending', 'completed', 'failed'];
 
-    $params = [
-        'select' => 'id,student_id,image_path,status,created_at,processed_at,error_message',
-        'order'  => 'created_at.desc',
-    ];
-
+    $sql = "SELECT id, student_id, image_path, status, created_at, processed_at, error_message
+            FROM registration_queue";
+    
+    $params = [];
     if ($status !== '' && in_array($status, $allowed, true)) {
-        $params['status'] = 'eq.' . $status;
+        $sql .= " WHERE status = :status";
+        $params[':status'] = $status;
     }
 
-    $res = supabase_get('registration_queue', $params);
-    if ($res['error']) {
-        throw new Exception('Supabase unavailable: ' . $res['error']);
-    }
+    $sql .= " ORDER BY created_at DESC";
 
-    echo json_encode(['data' => $res['data']]);
-} catch (Exception $e) {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    // Format timestamps to match ISO format
+    foreach ($rows as &$row) {
+        if ($row['created_at']) {
+            $row['created_at'] = str_replace(' ', 'T', $row['created_at']) . 'Z';
+        }
+        if ($row['processed_at']) {
+            $row['processed_at'] = str_replace(' ', 'T', $row['processed_at']) . 'Z';
+        }
+    }
+    unset($row);
+
+    echo json_encode(['data' => $rows]);
+} catch (PDOException $e) {
     http_response_code(503);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Database query error: ' . $e->getMessage()]);
     exit;
 }
