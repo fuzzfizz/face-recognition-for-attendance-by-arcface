@@ -9,7 +9,7 @@ try {
     $status = $_GET['status'] ?? '';
     $allowed = ['pending', 'completed', 'failed'];
 
-    $sql = "SELECT id, student_id, image_path, status, created_at, processed_at, error_message
+    $sql = "SELECT id, student_id, status, created_at, processed_at, error_message
             FROM registration_queue";
     
     $params = [];

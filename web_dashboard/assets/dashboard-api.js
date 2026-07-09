@@ -205,7 +205,7 @@ async function loadQueue() {
         groups[sid] = { student_id: sid, items: [], statuses: new Set(),
           created_ats: [], processed_ats: [], errors: [], raw_items: [] };
       }
-      groups[sid].items.push(row.image_path);
+      groups[sid].items.push('api/queue_image.php?id=' + row.id);
       groups[sid].raw_items.push(row);
       if (row.status)       groups[sid].statuses.add(row.status);
       if (row.created_at)   groups[sid].created_ats.push(new Date(row.created_at));
@@ -240,7 +240,7 @@ function renderQueueGroup(g) {
       onclick="event.stopPropagation()">
       <option value="">View Photos (${totalPhotos})</option>
       ${g.items.map((url, idx) => {
-        const fname = url.split('/').pop();
+        const fname = url.includes('id=') ? 'img_' + url.split('id=').pop() + '.jpg' : url.split('/').pop();
         return `<option value="${escapeHtml(url)}">Photo ${idx + 1} (${escapeHtml(fname)})</option>`;
       }).join('')}
     </select>`;
