@@ -447,6 +447,68 @@ async def test_register_images_self_healing_user_missing_in_db_prunes(
     assert result["status"] == "pending"
 
 
+@pytest.mark.anyio
+@patch("app.config.is_local_or_test", False)
+@patch("app.services.registration_service.get_user_by_student_id")
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.invalidate_cache")
+@patch("app.services.registration_service.match_face_embedding")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+@patch("app.services.registration_service.upload_image")
+async def test_register_images_duplicate_face_orphaned_prunes(
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_invalidate, mock_save_embeddings, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+):
+    # Registering S123, but duplicate match is found for S456.
+    # S456 does not exist in DB (orphaned). S456 should be pruned, and S123 registration should succeed.
+    def side_effect_get_user(sid):
+        if sid == "S123":
+            return {"id": 1, "student_id": "S123"}
+        return None  # S456 does not exist
+    
+    mock_get_user.side_effect = side_effect_get_user
+    mock_get_all_embeddings.return_value = [
+        {"student_id": "S123", "embeddings": [[0.1]*512]},
+        {"student_id": "S456", "embeddings": [[0.2]*512]}
+    ]
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_upload_image.return_value = 1
+
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True},
+        "face": MagicMock()
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+
+    mock_match_face.return_value = {
+        "student_id": "S456",
+        "similarity": 0.85,
+        "name": "Jane Doe",
+        "user_id": 2
+    }
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+
+    result = await register_images("S123", "John Doe", [mock_file])
+
+    assert mock_get_user.call_count >= 2
+    mock_get_user.assert_any_call("S123")
+    mock_get_user.assert_any_call("S456")
+    
+    mock_save_embeddings.assert_called_once_with([{"student_id": "S123", "embeddings": [[0.1]*512]}])
+    mock_invalidate.assert_called_once()
+    assert result["status"] == "pending"
+
+
 # ── Training Service ─────────────────────────────────────────────────
 
 @patch("app.services.training_service.get_pending_queue_items")
@@ -895,6 +957,72 @@ def test_process_pending_queue_duplicate_face(
     mock_invalidate.assert_not_called()
     assert result["message"] == "Training completed for batch"
     assert "S123" not in result["processed_students"]
+
+
+@patch("app.config.is_local_or_test", False)
+@patch("app.database.get_user_by_student_id")
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+@patch("app.matcher.match_face")
+@patch("app.services.registration_service._prune_student_embeddings")
+def test_process_pending_queue_duplicate_face_orphaned_prunes(
+    mock_prune, mock_match_face, mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending, mock_get_user
+):
+    # Processing S123. Match is found for S456. S456 is not in DB.
+    # S456 should be pruned, and S123 training should proceed.
+    mock_get_user.return_value = None  # S456 does not exist
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"}
+    ]
+    
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True
+        },
+        "face": MagicMock()
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+    
+    mock_get_all.return_value = [
+        {"student_id": "S123", "embeddings": [[0.1]*512]},
+        {"student_id": "S456", "embeddings": [[0.2]*512]}
+    ]
+
+    # Mock matching a different student_id (S456)
+    mock_match_face.return_value = {
+        "student_id": "S456",
+        "name": "Jane Doe",
+        "user_id": 2,
+        "similarity": 0.85
+    }
+
+    result = process_pending_queue()
+
+    mock_processor.decode_image.assert_called_once_with(b"fake_bytes_1")
+    mock_processor.validate_image_quality.assert_called_once()
+    mock_processor.extract_face_embedding.assert_called_once()
+    mock_match_face.assert_called_once_with([0.1] * 512)
+    mock_get_user.assert_called_once_with("S456")
+    
+    # S456 is pruned using mock_prune
+    mock_prune.assert_called_once_with("S456")
+    
+    # Save is called once at the end to save S123 (with S456 removed from the in-memory list)
+    mock_save.assert_called_once_with([{"student_id": "S123", "embeddings": [[0.1]*512, [0.1]*512]}])
+    mock_invalidate.assert_called_once()
+    
+    mock_update_status.assert_called_once_with(1, "completed", None)
+    assert result["message"] == "Training completed for batch"
+    assert "S123" in result["processed_students"]
 
 
 

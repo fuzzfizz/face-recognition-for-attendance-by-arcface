@@ -13,6 +13,14 @@ from app.database import (
 )
 from app.matcher import invalidate_cache
 
+def _prune_student_embeddings(student_id: str) -> None:
+    """Helper to remove a student's embeddings from local storage and clear cache."""
+    existing = get_all_embeddings()
+    updated = [e for e in existing if e.get("student_id") != student_id]
+    if len(updated) < len(existing):
+        save_all_embeddings(updated)
+        invalidate_cache()
+
 def delete_student(student_id: str) -> dict:
     """Delete a student's registration records, embeddings, and clear cache."""
     success = delete_student_from_db(student_id)
@@ -22,11 +30,7 @@ def delete_student(student_id: str) -> dict:
             detail="Failed to delete student database/storage records"
         )
 
-    existing = get_all_embeddings()
-    updated = [e for e in existing if e.get("student_id") != student_id]
-    if len(updated) < len(existing):
-        save_all_embeddings(updated)
-        invalidate_cache()
+    _prune_student_embeddings(student_id)
 
     return {
         "message": "Student registration data deleted successfully",
@@ -44,11 +48,7 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
         db_user = get_user_by_student_id(student_id)
         if not db_user:
             # User is not in DB, but embeddings exist in pickle -> prune
-            existing_all = get_all_embeddings()
-            updated = [e for e in existing_all if e.get("student_id") != student_id]
-            if len(updated) < len(existing_all):
-                save_all_embeddings(updated)
-                invalidate_cache()
+            _prune_student_embeddings(student_id)
 
     # 1. Quota Check: count user images (already registered embeddings) + pending queue records.
     # Limit to 10 photos per student (including already registered embeddings and pending queue records).
@@ -144,13 +144,23 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
             if face_data and "embedding" in face_data:
                 match = match_face_embedding(face_data["embedding"])
                 if match and match.get("student_id") != student_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": "This face is already registered",
-                            "results": []
-                        }
-                    )
+                    matched_student_id = match.get("student_id")
+                    from app.config import is_local_or_test
+                    is_orphaned = False
+                    if not is_local_or_test:
+                        matched_user = get_user_by_student_id(matched_student_id)
+                        if not matched_user:
+                            is_orphaned = True
+                            _prune_student_embeddings(matched_student_id)
+                    
+                    if not is_orphaned:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={
+                                "message": "This face is already registered",
+                                "results": []
+                            }
+                        )
 
             results.append({
                 "filename": file.filename,

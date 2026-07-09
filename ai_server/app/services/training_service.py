@@ -57,7 +57,23 @@ def process_pending_queue(limit: int = 50) -> dict:
                     from app.matcher import match_face
                     match = match_face(result["embedding"])
                     if match and match["student_id"] != student_id:
-                        all_item_statuses.append((item["id"], "failed", "This face is already registered"))
+                        matched_student_id = match["student_id"]
+                        from app.config import is_local_or_test
+                        from app.database import get_user_by_student_id
+                        is_orphaned = False
+                        if not is_local_or_test:
+                            matched_user = get_user_by_student_id(matched_student_id)
+                            if not matched_user:
+                                is_orphaned = True
+                                from app.services.registration_service import _prune_student_embeddings
+                                _prune_student_embeddings(matched_student_id)
+                                existing = [e for e in existing if e.get("student_id") != matched_student_id]
+                        
+                        if not is_orphaned:
+                            all_item_statuses.append((item["id"], "failed", "This face is already registered"))
+                        else:
+                            new_embeddings.append(result["embedding"])
+                            all_item_statuses.append((item["id"], "completed", None))
                     else:
                         new_embeddings.append(result["embedding"])
                         all_item_statuses.append((item["id"], "completed", None))
