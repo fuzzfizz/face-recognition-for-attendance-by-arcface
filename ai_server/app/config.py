@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 # Paths
@@ -8,16 +9,26 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 EMBEDDINGS_PATH = DATA_DIR / "face_embeddings.pkl"
 
-# Fallback to SQLite for completely offline dev (optional)
-# If no MySQL config is provided, the app falls back to SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./face_recognition.db")
+# Exclusive MySQL Database Configuration
+MYSQL_URL = os.getenv("MYSQL_URL", "")
 
-# Database Mode Configuration
-# Defaults to "mysql" in production, or fallback to SQLite.
-DB_MODE = os.getenv("DB_MODE", "mysql")
+# Throws a clean error if missing in production, or fallback to empty string for local/testing override
+is_local_or_test = (
+    "pytest" in sys.modules or
+    "unittest" in sys.modules or
+    os.getenv("ENV") in ("local", "testing", "development") or 
+    os.getenv("APP_ENV") in ("local", "testing", "development") or 
+    os.getenv("TESTING") == "true"
+)
 
-# Dedicated MYSQL_URL, fallback to DATABASE_URL
-MYSQL_URL = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL", "")
+if os.getenv("FORCE_PROD_CHECK") == "true":
+    is_local_or_test = False
+
+if not MYSQL_URL and not is_local_or_test:
+    raise RuntimeError(
+        "MYSQL_URL environment variable is not set. "
+        "In production, a valid MySQL connection URL is required (e.g. mysql+pymysql://user:pass@host:port/dbname)."
+    )
 
 # Face Recognition Configuration
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.45"))

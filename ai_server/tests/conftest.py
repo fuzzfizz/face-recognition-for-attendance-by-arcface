@@ -13,16 +13,13 @@ from fastapi.testclient import TestClient
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
     """Ensure tests run in pure SQLite offline mode."""
-    monkeypatch.setenv("DB_MODE", "sqlite")
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("MYSQL_URL", "sqlite:///:memory:")
     monkeypatch.setenv("ADMIN_API_KEY", "test-admin-key")
-    monkeypatch.delenv("MYSQL_URL", raising=False)
     # Patch module-level constants imported before fixture runs
     import app.config as _cfg
     import app.database as _db
-    monkeypatch.setattr(_cfg, "DB_MODE", "sqlite")
-    monkeypatch.setattr(_db, "DB_MODE", "sqlite")
-    monkeypatch.setattr(_db, "MYSQL_URL", "")
+    monkeypatch.setattr(_cfg, "MYSQL_URL", "sqlite:///:memory:")
+    monkeypatch.setattr(_db, "MYSQL_URL", "sqlite:///:memory:")
 
 @pytest.fixture()
 def temp_data_dir(tmp_path, monkeypatch):

@@ -159,7 +159,7 @@ function renderChecklistsHtml(items) {
   ];
 
   return items.map(item => {
-    const filename  = item.image_path.split('/').pop();
+    const filename  = item.image_path ? item.image_path.split('/').pop() : 'img_' + item.id + '.jpg';
     const checks    = parseValidationChecks(item);
     const statusCls = item.status || 'none';
     const statusTxt = item.status ? item.status.toUpperCase() : 'UNKNOWN';

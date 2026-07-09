@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "FaceAttend AI Server",
-    "description": "ArcFace attendance system backed by MySQL — v6.0.0\n\n## Setup\n1. Set the `base_url` variable to your server address (e.g. `http://localhost:8000`).\n2. Set `admin_key` to your `ADMIN_API_KEY` environment variable value.\n3. Admin-protected endpoints (`POST /train-now`, `DELETE /register/student/:id`) require the `X-Admin-Key` header — it is pre-filled from the `admin_key` variable.\n\n## Flow\n1. Health check → confirm server is up\n2. Register → upload face images for a student\n3. Check Status → poll until completed\n4. Train Now → force-process pending queue (admin only)\n5. Verify → send a live face image to check attendance\n6. Logs → retrieve recent check-in logs\n7. Delete Student → remove student data (admin only)",
+    "description": "ArcFace attendance system backed by MySQL — v6.0.0\n\n## Setup\n1. Set the `base_url` variable to your server address (e.g. `http://localhost:8000`).\n2. Set `admin_key` to your `ADMIN_API_KEY` environment variable value.\n3. Admin-protected endpoints (`POST /train-now`, `DELETE /register/student/:id`) require the `X-Admin-Key` header — it is pre-filled from the `admin_key` variable.\n\n## Flow\n1. Health check → confirm server is up\n2. Register → upload face image for a student\n3. Check Status → poll until completed\n4. Train Now → force-process pending queue (admin only)\n5. Verify → send a live face image to check attendance\n6. Logs → retrieve recent check-in logs\n7. Delete Student → remove student data (admin only)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -45,7 +45,10 @@
               "name": "200 OK",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/" } },
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/" }
+              },
               "body": "{\"status\": \"ok\", \"mode\": \"mysql\"}"
             }
           ]
@@ -63,9 +66,24 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "student_id", "value": "{{student_id}}", "type": "text", "description": "Alphanumeric, dashes and underscores only" },
-                { "key": "name", "value": "John Doe", "type": "text", "description": "Student display name (optional)" },
-                { "key": "files", "type": "file", "src": [], "description": "Face image file(s). Upload 5-10 photos for best accuracy." }
+                {
+                  "key": "student_id",
+                  "value": "{{student_id}}",
+                  "type": "text",
+                  "description": "Alphanumeric, dashes and underscores only"
+                },
+                {
+                  "key": "name",
+                  "value": "John Doe",
+                  "type": "text",
+                  "description": "Student display name (optional)"
+                },
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": [],
+                  "description": "Face image file(s). Upload 1 photo."
+                }
               ]
             },
             "url": {
@@ -73,21 +91,27 @@
               "host": ["{{base_url}}"],
               "path": ["register"]
             },
-            "description": "Upload one or more face images for a student. Non-blocking — images are queued for async processing.\n\n**student_id rules:** Only letters, numbers, `-` and `_` allowed.\n\nExample response:\n```json\n{ \"message\": \"1 image(s) queued for processing.\", \"student_id\": \"S001\", \"status\": \"queued\" }\n```"
+            "description": "Upload one or more face images for a student. Non-blocking — images are queued for async processing.\n\n**student_id rules:** Only letters, numbers, `-` and `_` allowed.\n\nExample response:\n```json\n{\n  \"message\": \"Images queued for processing successfully\",\n  \"student_id\": \"S001\",\n  \"status\": \"pending\",\n  \"validation_checklist\": {\n    \"face_detected\": true,\n    \"single_face\": true,\n    \"database_match\": null\n  }\n}\n```"
           },
           "response": [
             {
               "name": "200 OK — Queued",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/register" } },
-              "body": "{\"message\": \"1 image(s) queued for processing.\", \"student_id\": \"S001\", \"status\": \"queued\"}"
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/register" }
+              },
+              "body": "{\"message\": \"Images queued for processing successfully\", \"student_id\": \"S001\", \"status\": \"pending\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": null}}"
             },
             {
               "name": "400 Bad Request — Invalid student_id",
               "status": "Bad Request",
               "code": 400,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/register" } },
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/register" }
+              },
               "body": "{\"detail\": \"Invalid student_id format. Only alphanumeric characters, dashes, and underscores are allowed.\"}"
             }
           ]
@@ -109,21 +133,30 @@
               "name": "200 OK — Completed",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/register/status/S001" } },
-              "body": "{\"student_id\": \"S001\", \"status\": \"completed\", \"message\": \"Registration complete.\"}"
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/register/status/S001" }
+              },
+              "body": "{\"student_id\": \"S001\", \"status\": \"completed\", \"message\": \"Face extracted and saved successfully\"}"
             },
             {
               "name": "200 OK — Pending",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/register/status/S001" } },
-              "body": "{\"student_id\": \"S001\", \"status\": \"pending\", \"message\": \"Registration is pending.\"}"
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/register/status/S001" }
+              },
+              "body": "{\"student_id\": \"S001\", \"status\": \"pending\", \"message\": \"Waiting for AI processing. Scheduled updates run daily at 19:00.\"}"
             },
             {
               "name": "200 OK — Failed (no face detected)",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/register/status/S001" } },
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/register/status/S001" }
+              },
               "body": "{\"student_id\": \"S001\", \"status\": \"failed\", \"message\": \"Please look at the camera\"}"
             }
           ]
@@ -133,7 +166,11 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "X-Admin-Key", "value": "{{admin_key}}", "description": "Required — must match ADMIN_API_KEY on the server" }
+              {
+                "key": "X-Admin-Key",
+                "value": "{{admin_key}}",
+                "description": "Required — must match ADMIN_API_KEY on the server"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/register/student/{{student_id}}",
@@ -147,14 +184,20 @@
               "name": "200 OK — Deleted",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "DELETE", "url": { "raw": "{{base_url}}/register/student/S001" } },
-              "body": "{\"message\": \"Student S001 deleted successfully.\"}"
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{base_url}}/register/student/S001" }
+              },
+              "body": "{\"message\": \"Student registration data deleted successfully\", \"student_id\": \"S001\"}"
             },
             {
               "name": "401 Unauthorized",
               "status": "Unauthorized",
               "code": 401,
-              "originalRequest": { "method": "DELETE", "url": { "raw": "{{base_url}}/register/student/S001" } },
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{base_url}}/register/student/S001" }
+              },
               "body": "{\"detail\": \"Unauthorized\"}"
             }
           ]
@@ -169,14 +212,22 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "X-Admin-Key", "value": "{{admin_key}}", "description": "Required — must match ADMIN_API_KEY on the server" }
+              {
+                "key": "X-Admin-Key",
+                "value": "{{admin_key}}",
+                "description": "Required — must match ADMIN_API_KEY on the server"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/train-now?limit=50",
               "host": ["{{base_url}}"],
               "path": ["train-now"],
               "query": [
-                { "key": "limit", "value": "50", "description": "Max pending queue items to process (default: 50)" }
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Max pending queue items to process (default: 50)"
+                }
               ]
             },
             "description": "Immediately processes pending registration queue items up to `limit`. Triggers face embedding extraction and saves the model.\n\nNormally runs on a schedule; use this to force it manually.\n\nRequires X-Admin-Key header."
@@ -186,21 +237,30 @@
               "name": "200 OK — Trained",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/train-now" } },
-              "body": "{\"message\": \"Training complete.\", \"processed_students\": [\"S001\", \"S002\"], \"total_pending\": 0}"
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/train-now" }
+              },
+              "body": "{\"message\": \"Training completed for batch\", \"processed_students\": [\"S001\", \"S002\"], \"total_pending\": 0}"
             },
             {
               "name": "200 OK — Nothing pending",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/train-now" } },
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/train-now" }
+              },
               "body": "{\"message\": \"No pending items to train.\", \"processed_students\": [], \"total_pending\": 0}"
             },
             {
               "name": "401 Unauthorized",
               "status": "Unauthorized",
               "code": 401,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/train-now" } },
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/train-now" }
+              },
               "body": "{\"detail\": \"Unauthorized\"}"
             }
           ]
@@ -218,8 +278,18 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "file", "type": "file", "src": [], "description": "Live face image (jpg/png)" },
-                { "key": "device_id", "value": "ESP32-S3-01", "type": "text", "description": "Device identifier stored in check-in log (optional)" }
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Live face image (jpg/png)"
+                },
+                {
+                  "key": "device_id",
+                  "value": "ESP32-S3-01",
+                  "type": "text",
+                  "description": "Device identifier stored in check-in log (optional)"
+                }
               ]
             },
             "url": {
@@ -234,22 +304,31 @@
               "name": "200 OK — Match",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": true, \"student_id\": \"S001\", \"similarity_score\": 0.92, \"timestamp\": \"2026-07-06T10:00:00\", \"message\": \"Welcome, S001!\"}"
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/verify" }
+              },
+              "body": "{\"match\": true, \"student_id\": \"S001\", \"similarity_score\": 0.92, \"timestamp\": \"2026-07-06T10:00:00\", \"message\": \"Welcome, S001!\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": true}}"
             },
             {
               "name": "200 OK — No match",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.21, \"timestamp\": \"2026-07-06T10:00:01\", \"message\": \"Employee data not found\"}"
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/verify" }
+              },
+              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.21, \"timestamp\": \"2026-07-06T10:00:01\", \"message\": \"Employee data not found\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": false}}"
             },
             {
               "name": "200 OK — No face detected",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.0, \"timestamp\": \"2026-07-06T10:00:02\", \"message\": \"Please look at the camera\"}"
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/verify" }
+              },
+              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.0, \"timestamp\": \"2026-07-06T10:00:02\", \"message\": \"Please look at the camera\", \"validation_checklist\": {\"face_detected\": false, \"single_face\": false, \"database_match\": false}}"
             }
           ]
         },
@@ -261,8 +340,18 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "image_base64", "value": "<paste raw base64 JPEG string here>", "type": "text", "description": "Raw base64 image string — no data: prefix. Used by ESP32 and Flutter." },
-                { "key": "device_id", "value": "ESP32-S3-01", "type": "text", "description": "Device identifier stored in check-in log" }
+                {
+                  "key": "image_base64",
+                  "value": "<paste raw base64 JPEG string here>",
+                  "type": "text",
+                  "description": "Raw base64 image string — no data: prefix. Used by ESP32 and Flutter."
+                },
+                {
+                  "key": "device_id",
+                  "value": "ESP32-S3-01",
+                  "type": "text",
+                  "description": "Device identifier stored in check-in log"
+                }
               ]
             },
             "url": {
@@ -289,7 +378,11 @@
               "host": ["{{base_url}}"],
               "path": ["logs"],
               "query": [
-                { "key": "limit", "value": "50", "description": "Number of most-recent logs to return (default: 50)" }
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of most-recent logs to return (default: 50)"
+                }
               ]
             },
             "description": "Returns the most recent check-in log entries, ordered newest-first.\n\nEach entry includes student_id, similarity_score, device_id, timestamp, and error_message."
@@ -299,7 +392,10 @@
               "name": "200 OK",
               "status": "OK",
               "code": 200,
-              "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/logs?limit=5" } },
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{base_url}}/logs?limit=5" }
+              },
               "body": "[{\"id\": 42, \"student_id\": \"S001\", \"similarity_score\": 0.91, \"device_id\": \"ESP32-S3-01\", \"timestamp\": \"2026-07-06T10:00:00\", \"error_message\": null}, {\"id\": 41, \"student_id\": null, \"similarity_score\": 0.18, \"device_id\": \"ESP32-S3-01\", \"timestamp\": \"2026-07-06T09:58:12\", \"error_message\": \"Employee data not found\"}]"
             }
           ]

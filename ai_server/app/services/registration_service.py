@@ -1,16 +1,17 @@
 from fastapi import UploadFile, HTTPException, status
 from typing import List
 
+import app.config
 from app.database import (
     upsert_user,
     get_user_by_student_id,
     upload_image,
-    insert_queue_item,
     get_all_embeddings,
     save_all_embeddings,
     delete_student_from_db,
     get_pending_queue_items,
     match_face_embedding,
+    prune_student_embeddings,
 )
 from app.matcher import invalidate_cache
 
@@ -23,11 +24,7 @@ def delete_student(student_id: str) -> dict:
             detail="Failed to delete student database/storage records"
         )
 
-    existing = get_all_embeddings()
-    updated = [e for e in existing if e.get("student_id") != student_id]
-    if len(updated) < len(existing):
-        save_all_embeddings(updated)
-        invalidate_cache()
+    prune_student_embeddings(student_id)
 
     return {
         "message": "Student registration data deleted successfully",
@@ -39,6 +36,13 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
+    # Self-healing: if not in test mode, check database existence and prune orphaned embeddings
+    if not app.config.is_local_or_test:
+        db_user = get_user_by_student_id(student_id)
+        if not db_user:
+            # User is not in DB, but embeddings exist in pickle -> prune
+            prune_student_embeddings(student_id)
+
     # 1. Quota Check: count user images (already registered embeddings) + pending queue records.
     # Limit to 10 photos per student (including already registered embeddings and pending queue records).
     pending_items = get_pending_queue_items()
@@ -133,13 +137,22 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
             if face_data and "embedding" in face_data:
                 match = match_face_embedding(face_data["embedding"])
                 if match and match.get("student_id") != student_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": "This face is already registered",
-                            "results": []
-                        }
-                    )
+                    matched_student_id = match.get("student_id")
+                    is_orphaned = False
+                    if not app.config.is_local_or_test:
+                        matched_user = get_user_by_student_id(matched_student_id)
+                        if not matched_user:
+                            is_orphaned = True
+                            prune_student_embeddings(matched_student_id)
+                    
+                    if not is_orphaned:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={
+                                "message": "This face is already registered",
+                                "results": []
+                            }
+                        )
 
             results.append({
                 "filename": file.filename,
@@ -160,13 +173,11 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
 
     queue_count = 0
     for filename, file_bytes in decoded_images:
-        ext = filename.split(".")[-1] if filename and "." in filename else "jpg"
-
-        image_path = upload_image(file_bytes, student_id, ext)
-        if not image_path:
+        # Directly upload image to MySQL blob storage and queue it as "pending"
+        queue_id = upload_image(file_bytes, student_id)
+        if queue_id is None:
             continue
 
-        insert_queue_item(student_id, image_path)
         queue_count += 1
 
     if queue_count == 0:
