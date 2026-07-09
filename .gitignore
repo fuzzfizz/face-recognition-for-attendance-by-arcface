@@ -52,5 +52,7 @@ docker-compose.override.yml
 *.log
 .superpowers/
 
+# ───────── etc ─────────
 Idea.md
 sdd_helper.py
+DEPLOY_GUIDE.md
