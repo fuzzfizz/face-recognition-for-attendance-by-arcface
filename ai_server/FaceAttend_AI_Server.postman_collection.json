@@ -73,7 +73,7 @@
               "host": ["{{base_url}}"],
               "path": ["register"]
             },
-            "description": "Upload one or more face images for a student. Non-blocking — images are queued for async processing.\n\n**student_id rules:** Only letters, numbers, `-` and `_` allowed.\n\nExample response:\n```json\n{ \"message\": \"1 image(s) queued for processing.\", \"student_id\": \"S001\", \"status\": \"queued\" }\n```"
+            "description": "Upload one or more face images for a student. Non-blocking — images are queued for async processing.\n\n**student_id rules:** Only letters, numbers, `-` and `_` allowed.\n\nExample response:\n```json\n{\n  \"message\": \"Images queued for processing successfully\",\n  \"student_id\": \"S001\",\n  \"status\": \"pending\",\n  \"validation_checklist\": {\n    \"face_detected\": true,\n    \"single_face\": true,\n    \"database_match\": null\n  }\n}\n```"
           },
           "response": [
             {
@@ -81,7 +81,7 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/register" } },
-              "body": "{\"message\": \"1 image(s) queued for processing.\", \"student_id\": \"S001\", \"status\": \"queued\"}"
+              "body": "{\"message\": \"Images queued for processing successfully\", \"student_id\": \"S001\", \"status\": \"pending\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": null}}"
             },
             {
               "name": "400 Bad Request — Invalid student_id",
@@ -110,14 +110,14 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/register/status/S001" } },
-              "body": "{\"student_id\": \"S001\", \"status\": \"completed\", \"message\": \"Registration complete.\"}"
+              "body": "{\"student_id\": \"S001\", \"status\": \"completed\", \"message\": \"Face extracted and saved successfully\"}"
             },
             {
               "name": "200 OK — Pending",
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "GET", "url": { "raw": "{{base_url}}/register/status/S001" } },
-              "body": "{\"student_id\": \"S001\", \"status\": \"pending\", \"message\": \"Registration is pending.\"}"
+              "body": "{\"student_id\": \"S001\", \"status\": \"pending\", \"message\": \"Waiting for AI processing. Scheduled updates run daily at 19:00.\"}"
             },
             {
               "name": "200 OK — Failed (no face detected)",
@@ -148,7 +148,7 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "DELETE", "url": { "raw": "{{base_url}}/register/student/S001" } },
-              "body": "{\"message\": \"Student S001 deleted successfully.\"}"
+              "body": "{\"message\": \"Student registration data deleted successfully\", \"student_id\": \"S001\"}"
             },
             {
               "name": "401 Unauthorized",
@@ -187,7 +187,7 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/train-now" } },
-              "body": "{\"message\": \"Training complete.\", \"processed_students\": [\"S001\", \"S002\"], \"total_pending\": 0}"
+              "body": "{\"message\": \"Training completed for batch\", \"processed_students\": [\"S001\", \"S002\"], \"total_pending\": 0}"
             },
             {
               "name": "200 OK — Nothing pending",
@@ -235,21 +235,21 @@
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": true, \"student_id\": \"S001\", \"similarity_score\": 0.92, \"timestamp\": \"2026-07-06T10:00:00\", \"message\": \"Welcome, S001!\"}"
+              "body": "{\"match\": true, \"student_id\": \"S001\", \"similarity_score\": 0.92, \"timestamp\": \"2026-07-06T10:00:00\", \"message\": \"Welcome, S001!\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": true}}"
             },
             {
               "name": "200 OK — No match",
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.21, \"timestamp\": \"2026-07-06T10:00:01\", \"message\": \"Employee data not found\"}"
+              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.21, \"timestamp\": \"2026-07-06T10:00:01\", \"message\": \"Employee data not found\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": false}}"
             },
             {
               "name": "200 OK — No face detected",
               "status": "OK",
               "code": 200,
               "originalRequest": { "method": "POST", "url": { "raw": "{{base_url}}/verify" } },
-              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.0, \"timestamp\": \"2026-07-06T10:00:02\", \"message\": \"Please look at the camera\"}"
+              "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.0, \"timestamp\": \"2026-07-06T10:00:02\", \"message\": \"Please look at the camera\", \"validation_checklist\": {\"face_detected\": false, \"single_face\": false, \"database_match\": false}}"
             }
           ]
         },
