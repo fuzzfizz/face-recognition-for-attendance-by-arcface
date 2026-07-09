@@ -408,13 +408,12 @@ async def test_register_images_self_healing_user_exists_in_db(
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_pending_queue_items")
 @patch("app.services.registration_service.get_all_embeddings")
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.invalidate_cache")
+@patch("app.services.registration_service.prune_student_embeddings")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
 async def test_register_images_self_healing_user_missing_in_db_prunes(
-    mock_upload_image, mock_upsert_user, mock_get_processor, mock_invalidate, mock_save_embeddings, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_prune, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
 ):
     # When is_local_or_test = False, and user DOES NOT exist in db:
     # Any embeddings matching that student_id should be pruned from pickle file and cache invalidated.
@@ -442,8 +441,7 @@ async def test_register_images_self_healing_user_missing_in_db_prunes(
     result = await register_images("S123", "John Doe", [mock_file])
 
     mock_get_user.assert_called_once_with("S123")
-    mock_save_embeddings.assert_called_once_with([{"student_id": "S456", "embeddings": [[0.2]*512]}])
-    mock_invalidate.assert_called_once()
+    mock_prune.assert_called_once_with("S123")
     assert result["status"] == "pending"
 
 
@@ -452,14 +450,13 @@ async def test_register_images_self_healing_user_missing_in_db_prunes(
 @patch("app.services.registration_service.get_user_by_student_id")
 @patch("app.services.registration_service.get_pending_queue_items")
 @patch("app.services.registration_service.get_all_embeddings")
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.invalidate_cache")
+@patch("app.services.registration_service.prune_student_embeddings")
 @patch("app.services.registration_service.match_face_embedding")
 @patch("app.face_processor.get_face_processor")
 @patch("app.services.registration_service.upsert_user")
 @patch("app.services.registration_service.upload_image")
 async def test_register_images_duplicate_face_orphaned_prunes(
-    mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_invalidate, mock_save_embeddings, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_match_face, mock_prune, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
 ):
     # Registering S123, but duplicate match is found for S456.
     # S456 does not exist in DB (orphaned). S456 should be pruned, and S123 registration should succeed.
@@ -504,8 +501,7 @@ async def test_register_images_duplicate_face_orphaned_prunes(
     mock_get_user.assert_any_call("S123")
     mock_get_user.assert_any_call("S456")
     
-    mock_save_embeddings.assert_called_once_with([{"student_id": "S123", "embeddings": [[0.1]*512]}])
-    mock_invalidate.assert_called_once()
+    mock_prune.assert_called_once_with("S456")
     assert result["status"] == "pending"
 
 
@@ -568,7 +564,7 @@ def test_process_pending_queue_batching(
     assert result["message"] == "Training completed for batch"
     assert "S123" in result["processed_students"]
     assert "S456" in result["processed_students"]
-    assert mock_save.call_count == 2  # Once for S123, once for S456 (periodic saving)
+    assert mock_save.call_count == 1  # Batched saving at the end of the batch
     assert mock_update_status.call_count == 3
 
 
@@ -840,23 +836,16 @@ def test_verify_face_timezone_aware_string(mock_insert, mock_get_latest, mock_ma
 
 
 @patch("app.services.registration_service.delete_student_from_db")
-@patch("app.services.registration_service.get_all_embeddings")
-@patch("app.services.registration_service.save_all_embeddings")
-@patch("app.services.registration_service.invalidate_cache")
-def test_delete_student_service_success(mock_invalidate, mock_save, mock_get_all, mock_db_delete):
+@patch("app.services.registration_service.prune_student_embeddings")
+def test_delete_student_service_success(mock_prune, mock_db_delete):
     mock_db_delete.return_value = True
-    mock_get_all.return_value = [
-        {"student_id": "S123", "embeddings": []},
-        {"student_id": "S456", "embeddings": []}
-    ]
     
     from app.services.registration_service import delete_student
     result = delete_student("S123")
     
     assert result["student_id"] == "S123"
     assert "deleted successfully" in result["message"]
-    mock_save.assert_called_once_with([{"student_id": "S456", "embeddings": []}])
-    mock_invalidate.assert_called_once()
+    mock_prune.assert_called_once_with("S123")
 
 
 @patch("app.services.registration_service.delete_student_from_db")
@@ -968,13 +957,16 @@ def test_process_pending_queue_duplicate_face(
 @patch("app.services.training_service.save_all_embeddings")
 @patch("app.services.training_service.invalidate_cache")
 @patch("app.matcher.match_face")
-@patch("app.services.registration_service._prune_student_embeddings")
 def test_process_pending_queue_duplicate_face_orphaned_prunes(
-    mock_prune, mock_match_face, mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending, mock_get_user
+    mock_match_face, mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending, mock_get_user
 ):
     # Processing S123. Match is found for S456. S456 is not in DB.
     # S456 should be pruned, and S123 training should proceed.
-    mock_get_user.return_value = None  # S456 does not exist
+    def side_effect_get_user(sid):
+        if sid == "S123":
+            return {"id": 1, "student_id": "S123"}
+        return None  # S456 does not exist
+    mock_get_user.side_effect = side_effect_get_user
     mock_get_pending.return_value = [
         {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"}
     ]
@@ -1011,10 +1003,9 @@ def test_process_pending_queue_duplicate_face_orphaned_prunes(
     mock_processor.validate_image_quality.assert_called_once()
     mock_processor.extract_face_embedding.assert_called_once()
     mock_match_face.assert_called_once_with([0.1] * 512)
-    mock_get_user.assert_called_once_with("S456")
-    
-    # S456 is pruned using mock_prune
-    mock_prune.assert_called_once_with("S456")
+    assert mock_get_user.call_count == 2
+    mock_get_user.assert_any_call("S123")
+    mock_get_user.assert_any_call("S456")
     
     # Save is called once at the end to save S123 (with S456 removed from the in-memory list)
     mock_save.assert_called_once_with([{"student_id": "S123", "embeddings": [[0.1]*512, [0.1]*512]}])
@@ -1023,6 +1014,53 @@ def test_process_pending_queue_duplicate_face_orphaned_prunes(
     mock_update_status.assert_called_once_with(1, "completed", None)
     assert result["message"] == "Training completed for batch"
     assert "S123" in result["processed_students"]
+
+
+@patch("app.config.is_local_or_test", False)
+@patch("app.database.get_user_by_student_id")
+@patch("app.services.training_service.get_pending_queue_items")
+@patch("app.services.training_service.get_face_processor")
+@patch("app.services.training_service.update_queue_item_status")
+@patch("app.services.training_service.get_all_embeddings")
+@patch("app.services.training_service.save_all_embeddings")
+@patch("app.services.training_service.invalidate_cache")
+def test_process_pending_queue_orphaned_student_skipped(
+    mock_invalidate, mock_save, mock_get_all, mock_update_status, mock_get_processor, mock_get_pending, mock_get_user
+):
+    # S123 has queue items but does not exist in DB (orphaned queue check).
+    # S123 should be skipped, items marked as failed, and any existing S123 embeddings pruned.
+    mock_get_user.return_value = None  # S123 does not exist in DB
+    mock_get_pending.return_value = [
+        {"id": 1, "student_id": "S123", "image_blob": b"fake_bytes_1"},
+        {"id": 2, "student_id": "S123", "image_blob": b"fake_bytes_2"}
+    ]
+    
+    mock_get_all.return_value = [
+        {"student_id": "S123", "embeddings": [[0.1]*512]},
+        {"student_id": "S456", "embeddings": [[0.2]*512]}
+    ]
+
+    mock_processor = MagicMock()
+    mock_get_processor.return_value = mock_processor
+
+    result = process_pending_queue()
+
+    # S123 database check was called
+    mock_get_user.assert_called_once_with("S123")
+    
+    # Image decoding and face processing should not be called for S123
+    mock_processor.decode_image.assert_not_called()
+    
+    # Items marked as failed in DB
+    mock_update_status.assert_any_call(1, "failed", "Student record not found in database")
+    mock_update_status.assert_any_call(2, "failed", "Student record not found in database")
+    
+    # Save is called to prune S123 from embeddings (leaving only S456)
+    mock_save.assert_called_once_with([{"student_id": "S456", "embeddings": [[0.2]*512]}])
+    mock_invalidate.assert_called_once()
+    
+    assert result["message"] == "Training completed for batch"
+    assert "S123" not in result["processed_students"]
 
 
 

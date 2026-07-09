@@ -6,7 +6,7 @@ import datetime
 from typing import Optional, List, Dict, Any
 
 from app.config import MYSQL_URL
-from app.matcher import load_embeddings, save_embeddings, match_face
+from app.matcher import load_embeddings, save_embeddings, match_face, invalidate_cache
 from app.models import Base, User, RegistrationQueue, CheckInLog
 
 _engine = None
@@ -227,6 +227,14 @@ def get_all_embeddings():
 
 def save_all_embeddings(embeddings_data):
     return save_embeddings(embeddings_data)
+
+def prune_student_embeddings(student_id: str) -> None:
+    """Remove a student's embeddings from local storage and clear cache."""
+    existing = get_all_embeddings()
+    updated = [e for e in existing if e.get("student_id") != student_id]
+    if len(updated) < len(existing):
+        save_all_embeddings(updated)
+        invalidate_cache()
 
 def match_face_embedding(query_embedding):
     return match_face(query_embedding)
