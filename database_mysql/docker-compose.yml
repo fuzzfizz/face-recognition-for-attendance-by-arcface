@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   db:
-    image: athit0900/face-recognition-ai-database:latest
+    image: athit0900/face-recognition-ai-database:1.0.0
     container_name: face-recognition-ai-database
     restart: always
     environment:

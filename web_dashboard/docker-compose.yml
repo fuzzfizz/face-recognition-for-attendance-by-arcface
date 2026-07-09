@@ -1,22 +1,20 @@
-version: '3.8'
+version: "3.8"
 
 services:
   web_dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: faceattend_web_dashboard
+    image: athit0900/face-recognition-ai-web-dashboard:1.0.0
+    container_name: face-recognition-ai-web-dashboard
     restart: unless-stopped
     ports:
       - "8080:80"
     environment:
-      - DB_HOST=136.110.6.161
-      - DB_PORT=3306
-      - DB_USER=face_admin
-      - DB_PASS=SecurePassword123!
-      - DB_NAME=face_attendance
-      - AI_SERVER_URL=http://34.124.240.7:8000
-      - ADMIN_API_KEY=my-secure-admin-token-12345
+      - DB_HOST={DB_HOST}
+      - DB_PORT={DB_PORT}
+      - DB_USER={DB_USER}
+      - DB_PASS={DB_PASS}
+      - DB_NAME={DB_NAME}
+      - AI_SERVER_URL={AI_SERVER_URL}
+      - ADMIN_API_KEY={ADMIN_API_KEY}
     logging:
       driver: "json-file"
       options:
