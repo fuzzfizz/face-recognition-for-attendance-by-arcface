@@ -330,6 +330,123 @@ def test_get_registration_status_completed(mock_get_all_embeddings, mock_get_use
     assert "Face extracted and saved successfully" in result["message"]
 
 
+@pytest.mark.anyio
+@patch("app.services.registration_service.get_user_by_student_id")
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+@patch("app.services.registration_service.upload_image")
+async def test_register_images_self_healing_not_triggered_in_test(
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+):
+    # Under test (is_local_or_test = True), self-healing should NOT be triggered
+    # and get_user_by_student_id should NOT be called.
+    mock_get_all_embeddings.return_value = []
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_upload_image.return_value = 1
+
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True}
+    }
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+
+    result = await register_images("S123", "John Doe", [mock_file])
+
+    mock_get_user.assert_not_called()
+    assert result["status"] == "pending"
+
+
+@pytest.mark.anyio
+@patch("app.config.is_local_or_test", False)
+@patch("app.services.registration_service.get_user_by_student_id")
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+@patch("app.services.registration_service.upload_image")
+async def test_register_images_self_healing_user_exists_in_db(
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_save_embeddings, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+):
+    # When is_local_or_test = False, and user exists in db, no self-healing pruning should occur.
+    mock_get_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_get_all_embeddings.return_value = [{"student_id": "S123", "embeddings": [[0.1]*512]}]
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_upload_image.return_value = 1
+
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True}
+    }
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+
+    result = await register_images("S123", "John Doe", [mock_file])
+
+    mock_get_user.assert_called_once_with("S123")
+    mock_save_embeddings.assert_not_called()
+    assert result["status"] == "pending"
+
+
+@pytest.mark.anyio
+@patch("app.config.is_local_or_test", False)
+@patch("app.services.registration_service.get_user_by_student_id")
+@patch("app.services.registration_service.get_pending_queue_items")
+@patch("app.services.registration_service.get_all_embeddings")
+@patch("app.services.registration_service.save_all_embeddings")
+@patch("app.services.registration_service.invalidate_cache")
+@patch("app.face_processor.get_face_processor")
+@patch("app.services.registration_service.upsert_user")
+@patch("app.services.registration_service.upload_image")
+async def test_register_images_self_healing_user_missing_in_db_prunes(
+    mock_upload_image, mock_upsert_user, mock_get_processor, mock_invalidate, mock_save_embeddings, mock_get_all_embeddings, mock_get_pending_queue_items, mock_get_user
+):
+    # When is_local_or_test = False, and user DOES NOT exist in db:
+    # Any embeddings matching that student_id should be pruned from pickle file and cache invalidated.
+    mock_get_user.return_value = None
+    mock_get_all_embeddings.return_value = [
+        {"student_id": "S123", "embeddings": [[0.1]*512]},
+        {"student_id": "S456", "embeddings": [[0.2]*512]}
+    ]
+    mock_get_pending_queue_items.return_value = []
+    mock_upsert_user.return_value = {"id": 1, "student_id": "S123"}
+    mock_upload_image.return_value = 1
+
+    mock_processor = MagicMock()
+    mock_processor.decode_image.return_value = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {"face_detected": True, "single_face": True}
+    }
+    mock_get_processor.return_value = mock_processor
+
+    mock_file = MagicMock(spec=UploadFile)
+    mock_file.filename = "pic.jpg"
+    mock_file.read = AsyncMock(return_value=b"image_content")
+
+    result = await register_images("S123", "John Doe", [mock_file])
+
+    mock_get_user.assert_called_once_with("S123")
+    mock_save_embeddings.assert_called_once_with([{"student_id": "S456", "embeddings": [[0.2]*512]}])
+    mock_invalidate.assert_called_once()
+    assert result["status"] == "pending"
+
+
 # ── Training Service ─────────────────────────────────────────────────
 
 @patch("app.services.training_service.get_pending_queue_items")

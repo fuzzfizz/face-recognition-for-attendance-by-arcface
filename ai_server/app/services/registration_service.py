@@ -38,6 +38,18 @@ async def register_images(student_id: str, name: str, files: List[UploadFile]) -
     Upsert user in storage, upload images to storage, insert queue entries,
     and return the result.
     """
+    # Self-healing: if not in test mode, check database existence and prune orphaned embeddings
+    from app.config import is_local_or_test
+    if not is_local_or_test:
+        db_user = get_user_by_student_id(student_id)
+        if not db_user:
+            # User is not in DB, but embeddings exist in pickle -> prune
+            existing_all = get_all_embeddings()
+            updated = [e for e in existing_all if e.get("student_id") != student_id]
+            if len(updated) < len(existing_all):
+                save_all_embeddings(updated)
+                invalidate_cache()
+
     # 1. Quota Check: count user images (already registered embeddings) + pending queue records.
     # Limit to 10 photos per student (including already registered embeddings and pending queue records).
     pending_items = get_pending_queue_items()
