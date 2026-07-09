@@ -1,0 +1,21 @@
+# Exclude local secrets
+config.php
+
+# Exclude git directories and files
+.git
+.gitignore
+
+# Exclude Docker configs
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Exclude documentation and example configs
+DEPLOY.md
+README.md
+config.example.php
+
+# Exclude OS metadata and temp files
+.DS_Store
+Thumbs.db
+*.log
