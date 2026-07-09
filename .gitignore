@@ -15,11 +15,13 @@ env/
 # ───────── IDE / Editor ─────────
 .vscode/
 .idea/
+.obsidian/workspace.json
 *.swp
 *.swo
 *~
 .DS_Store
 Thumbs.db
+
 
 # ───────── Face Recognition Data ─────────
 ai_server/data/
