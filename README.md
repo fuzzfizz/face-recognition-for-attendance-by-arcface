@@ -24,7 +24,7 @@ graph TD
         F -->|Trigger Training via API| B
     end
 
-    subgraph Data Persistence (MySQL)
+    subgraph MySQL Data Persistence
         C --> T1[(users)]
         C --> T2[(registration_queue<br/>image_blob LONGBLOB)]
         C --> T3[(check_in_logs)]
