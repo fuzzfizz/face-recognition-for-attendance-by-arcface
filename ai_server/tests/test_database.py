@@ -142,6 +142,26 @@ def test_insert_log_with_error_message(in_memory_db):
     assert logs[0].get("error_message") == "Blur Check Failed"
 
 
+def test_insert_log_with_custom_timestamp(in_memory_db):
+    """Test that we can insert a log with a custom timestamp."""
+    import datetime
+    from app.database import insert_log, get_logs
+    custom_ts = datetime.datetime(2026, 7, 15, 15, 20, 0)
+    
+    success = insert_log(
+        student_id=None,
+        similarity_score=0.0,
+        device_id="TEST-DEV",
+        timestamp=custom_ts
+    )
+    assert success is True
+    
+    logs = get_logs(limit=1)
+    assert len(logs) == 1
+    assert logs[0].get("timestamp") == custom_ts
+
+
+
 def test_mysql_mode_upload_image(in_memory_db):
     """Test upload_image directly inserts pending queue item in MySQL mode."""
     from app.database import upload_image, _get_sqlite_session

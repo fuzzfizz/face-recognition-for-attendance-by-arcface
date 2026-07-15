@@ -835,6 +835,60 @@ def test_verify_face_timezone_aware_string(mock_insert, mock_get_latest, mock_ma
     mock_insert.assert_not_called()
 
 
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+@patch("app.services.verification_service.match_face_embedding")
+@patch("app.services.verification_service.insert_log")
+def test_verify_face_custom_timestamp(mock_insert_log, mock_match, mock_decode, mock_get_processor):
+    import datetime
+    mock_decode.return_value = MagicMock()
+    mock_processor = MagicMock()
+    mock_processor.validate_image_quality.return_value = {
+        "passed": True,
+        "results": {
+            "face_detected": True,
+            "single_face": True
+        }
+    }
+    mock_processor.extract_face_embedding.return_value = {"embedding": [0.1] * 512}
+    mock_get_processor.return_value = mock_processor
+
+    mock_match.return_value = {"student_id": "S123", "similarity": 0.85, "user_id": 1}
+
+    # 1. Test standard ISO string
+    custom_ts_str = "2026-07-15T15:20:00"
+    result = verify_face(image_data=b"image_bytes", device_id="ESP-TEST", timestamp=custom_ts_str)
+
+    expected_dt = datetime.datetime.fromisoformat(custom_ts_str)
+    mock_insert_log.assert_called_once_with(
+        student_id="S123", similarity_score=0.85, device_id="ESP-TEST", user_id=1, timestamp=expected_dt
+    )
+    assert result["match"] is True
+    assert result["timestamp"] == custom_ts_str
+
+    # 2. Test ISO string with Z suffix (representing UTC)
+    mock_insert_log.reset_mock()
+    custom_ts_z_str = "2026-07-15T15:20:00Z"
+    result_z = verify_face(image_data=b"image_bytes", device_id="ESP-TEST", timestamp=custom_ts_z_str)
+    
+    mock_insert_log.assert_called_once_with(
+        student_id="S123", similarity_score=0.85, device_id="ESP-TEST", user_id=1, timestamp=expected_dt
+    )
+    assert result_z["timestamp"] == expected_dt.isoformat()
+
+
+@patch("app.services.verification_service.get_face_processor")
+@patch("app.services.verification_service.decode_image_bytes")
+def test_verify_face_invalid_timestamp(mock_decode, mock_get_processor):
+    mock_decode.return_value = MagicMock()
+    # Should raise HTTP 400 Bad Request
+    with pytest.raises(HTTPException) as exc_info:
+        verify_face(image_data=b"image_bytes", device_id="ESP-TEST", timestamp="invalid-date-format")
+    assert exc_info.value.status_code == 400
+    assert "Invalid timestamp format" in exc_info.value.detail
+
+
+
 @patch("app.services.registration_service.delete_student_from_db")
 @patch("app.services.registration_service.prune_student_embeddings")
 def test_delete_student_service_success(mock_prune, mock_db_delete):

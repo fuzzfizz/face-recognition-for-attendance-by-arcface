@@ -96,7 +96,8 @@ def insert_log(
     similarity_score: float,
     device_id: str,
     user_id: Optional[int] = None,
-    error_message: Optional[str] = None
+    error_message: Optional[str] = None,
+    timestamp: Optional[datetime.datetime] = None
 ):
     session = _get_db_session()
     try:
@@ -113,6 +114,9 @@ def insert_log(
             device_id=device_id,
             error_message=error_message,
         )
+        if timestamp is not None:
+            log.timestamp = timestamp
+
         session.add(log)
         session.commit()
         return True

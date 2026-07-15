@@ -155,6 +155,70 @@ def test_verify_route(mock_verify):
     mock_verify.assert_called_once()
 
 
+@patch("app.services.verification_service.verify_face")
+def test_verify_legacy_route(mock_verify):
+    mock_verify.return_value = {
+        "match": True,
+        "student_id": "S001",
+        "similarity_score": 0.85,
+        "timestamp": "2026-07-15T15:20:00",
+        "validation_checklist": {
+            "face_detected": True,
+            "single_face": True,
+            "database_match": True
+        }
+    }
+
+    # 1. Test legacy route with custom device_id and custom timestamp
+    response = client.post(
+        "/verify",
+        data={"device_id": "ESP32-LEGACY", "timestamp": "2026-07-15T15:20:00"},
+        files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response.status_code == 200
+    res_json = response.json()
+    assert res_json["match"] is True
+    assert res_json["timestamp"] == "2026-07-15T15:20:00"
+    mock_verify.assert_called_with(
+        image_data=b"fakebytes",
+        image_base64=None,
+        device_id="ESP32-LEGACY",
+        timestamp="2026-07-15T15:20:00"
+    )
+
+    mock_verify.reset_mock()
+
+    # 2. Test legacy route with default device_id and no timestamp
+    response_default = client.post(
+        "/verify",
+        files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response_default.status_code == 200
+    mock_verify.assert_called_with(
+        image_data=b"fakebytes",
+        image_base64=None,
+        device_id="ESP32-S3-01",
+        timestamp=None
+    )
+
+
+def test_verify_route_device_id_validation():
+    # Test path parameter validation on device_id (pattern check)
+    response_invalid_pattern = client.post(
+        "/verify/face_recognition/ESP@01",
+        files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response_invalid_pattern.status_code == 422
+
+    # Test path parameter validation on device_id (max_length check)
+    response_too_long = client.post(
+        f"/verify/face_recognition/{'a' * 51}",
+        files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
+    )
+    assert response_too_long.status_code == 422
+
+
+
 # ── /logs ────────────────────────────────────────────────────────────
 
 @patch("app.routers.logs.get_logs")

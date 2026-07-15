@@ -13,12 +13,30 @@ from app.utils.image_utils import decode_image_bytes, decode_base64_image
 def verify_face(
     image_data: Optional[bytes] = None,
     image_base64: Optional[str] = None,
-    device_id: str = "ESP32-S3-01"
+    device_id: str = "ESP32-S3-01",
+    timestamp: Optional[str] = None
 ) -> dict:
     """
     Real-time face verification. Matches the input BGR image (from raw bytes
     or base64 string) against local face embeddings and logs the attendance check-in.
     """
+    dt_obj = None
+    if timestamp:
+        clean_ts = timestamp
+        if clean_ts.endswith("Z"):
+            clean_ts = clean_ts[:-1] + "+00:00"
+        try:
+            dt_obj = datetime.datetime.fromisoformat(clean_ts)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid timestamp format: {str(e)}"
+            )
+        if dt_obj.tzinfo is not None:
+            dt_obj = dt_obj.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+    response_dt = dt_obj if dt_obj is not None else datetime.datetime.utcnow()
+
     processor = get_face_processor()
     cv_img = None
 
@@ -47,14 +65,23 @@ def verify_face(
     # Run image quality validation first
     val_res = processor.validate_image_quality(cv_img)
     if not val_res["passed"]:
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message=val_res["error_message"])
+        log_kwargs = {
+            "student_id": None,
+            "similarity_score": 0.0,
+            "device_id": device_id,
+            "error_message": val_res["error_message"],
+        }
+        if dt_obj is not None:
+            log_kwargs["timestamp"] = dt_obj
+        insert_log(**log_kwargs)
+
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": response_dt.isoformat(),
             "message": val_res["error_message"],
             "validation_checklist": checklist
         }
@@ -63,14 +90,23 @@ def verify_face(
     face_data = processor.extract_face_embedding(cv_img, face=val_res.get("face"))
     if not face_data:
         # No face detected — log with no match
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="Please look at the camera")
+        log_kwargs = {
+            "student_id": None,
+            "similarity_score": 0.0,
+            "device_id": device_id,
+            "error_message": "Please look at the camera",
+        }
+        if dt_obj is not None:
+            log_kwargs["timestamp"] = dt_obj
+        insert_log(**log_kwargs)
+
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": response_dt.isoformat(),
             "message": "Please look at the camera",
             "validation_checklist": checklist
         }
@@ -101,7 +137,7 @@ def verify_face(
             if latest_dt.tzinfo is not None:
                 latest_dt = latest_dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
 
-            elapsed = (datetime.datetime.utcnow() - latest_dt).total_seconds()
+            elapsed = (response_dt - latest_dt).total_seconds()
             if elapsed < 300:
                 checklist = val_res["results"].copy()
                 checklist["database_match"] = True
@@ -109,17 +145,20 @@ def verify_face(
                     "match": True,
                     "student_id": student_id,
                     "similarity_score": match["similarity"],
-                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                    "timestamp": response_dt.isoformat(),
                     "message": "Student has already checked in within the last 5 minutes.",
                     "validation_checklist": checklist
                 }
 
-        insert_log(
-            student_id=student_id,
-            similarity_score=match["similarity"],
-            device_id=device_id,
-            user_id=user_id,
-        )
+        log_kwargs = {
+            "student_id": student_id,
+            "similarity_score": match["similarity"],
+            "device_id": device_id,
+            "user_id": user_id,
+        }
+        if dt_obj is not None:
+            log_kwargs["timestamp"] = dt_obj
+        insert_log(**log_kwargs)
 
         checklist = val_res["results"].copy()
         checklist["database_match"] = True
@@ -127,19 +166,28 @@ def verify_face(
             "match": True,
             "student_id": student_id,
             "similarity_score": match["similarity"],
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": response_dt.isoformat(),
             "message": None,
             "validation_checklist": checklist
         }
     else:
-        insert_log(student_id=None, similarity_score=0.0, device_id=device_id, error_message="Employee data not found")
+        log_kwargs = {
+            "student_id": None,
+            "similarity_score": 0.0,
+            "device_id": device_id,
+            "error_message": "Employee data not found",
+        }
+        if dt_obj is not None:
+            log_kwargs["timestamp"] = dt_obj
+        insert_log(**log_kwargs)
+
         checklist = val_res["results"].copy()
         checklist["database_match"] = False
         return {
             "match": False,
             "student_id": None,
             "similarity_score": 0.0,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": response_dt.isoformat(),
             "message": "Employee data not found",
             "validation_checklist": checklist
         }
