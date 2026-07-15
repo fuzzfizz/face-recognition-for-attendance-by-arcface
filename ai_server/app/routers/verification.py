@@ -6,11 +6,11 @@ from app.services import verification_service
 
 router = APIRouter(tags=["verification"])
 
-@router.post("/verify", response_model=VerifyResponse)
+@router.post("/verify/face_recognition/{device_id}", response_model=VerifyResponse)
 async def verify(
+    device_id: str,
     file: Optional[UploadFile] = File(None),
     image_base64: Optional[str] = Form(None),
-    device_id: str = Form("ESP32-S3-01"),
 ):
     """
     Real-time face verification. Matches the input photo against local embeddings

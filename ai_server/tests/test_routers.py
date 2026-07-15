@@ -144,8 +144,7 @@ def test_verify_route(mock_verify):
     }
     
     response = client.post(
-        "/verify",
-        data={"device_id": "ESP-01"},
+        "/verify/face_recognition/ESP-01",
         files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
     )
     
@@ -246,8 +245,7 @@ def test_verify_route_validation_failure(mock_insert_log, mock_get_processor, mo
     mock_get_processor.return_value = mock_processor
 
     response = client.post(
-        "/verify",
-        data={"device_id": "ESP-TEST-01"},
+        "/verify/face_recognition/ESP-TEST-01",
         files={"file": ("file.jpg", b"fakebytes", "image/jpeg")}
     )
 

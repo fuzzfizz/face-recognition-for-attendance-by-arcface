@@ -1,4 +1,4 @@
-﻿# Face Recognition AI Server
+# Face Recognition AI Server
 
 A high-accuracy AI-powered attendance system using **ArcFace** (via InsightFace) for face recognition. The system consists of a FastAPI backend server with **MySQL-only** persistence and in-memory, local face matching using serialized .pkl embeddings for ultra-fast, zero-network verification.
 
@@ -159,7 +159,7 @@ The server starts on `http://localhost:8000`. Swagger API docs are available at 
 | `GET` | `/register/status/{student_id}` | Check the registration processing status for a student. | None |
 | `DELETE` | `/register/student/{student_id}` | Delete a student's database records, queue items, and embeddings. | `X-Admin-Key` |
 | `POST` | `/train-now` | Trigger training for all pending queue items immediately. | `X-Admin-Key` |
-| `POST` | `/verify` | Verify a face image (Multipart or Base64) and log attendance. | None |
+| `POST` | `/verify/face_recognition/{device_id}` | Verify a face image (Multipart or Base64) and log attendance. | None |
 | `GET` | `/logs` | Retrieve recent check-in logs (`?limit=N`, default 50). | None |
 | `GET` | `/` | Health check. Returns server status and database mode. | None |
 
@@ -240,14 +240,14 @@ curl -X DELETE "http://localhost:8000/register/student/S001" -H "X-Admin-Key: yo
 
 ## Verification & Attendance Logging
 
-`POST /verify` accepts a Multipart file upload or a base64-encoded image:
+`POST /verify/face_recognition/{device_id}` accepts a Multipart file upload or a base64-encoded image:
 
 ```bash
 # With image file
-curl -X POST "http://localhost:8000/verify" -F "file=@face.jpg" -F "device_id=ESP32-S3-01"
+curl -X POST "http://localhost:8000/verify/face_recognition/ESP32-S3-01" -F "file=@face.jpg"
 
 # With base64
-curl -X POST "http://localhost:8000/verify" -d "image_base64=<base64>&device_id=ESP32-S3-01"
+curl -X POST "http://localhost:8000/verify/face_recognition/ESP32-S3-01" -d "image_base64=<base64>"
 ```
 
 The flow:
