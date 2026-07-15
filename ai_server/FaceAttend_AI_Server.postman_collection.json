@@ -22,6 +22,12 @@
       "value": "S001",
       "description": "Student ID used across register / status / delete requests.",
       "type": "string"
+    },
+    {
+      "key": "device_id",
+      "value": "ESP32-S3-01",
+      "description": "Device ID of the ESP32-CAM module or client sending verification requests.",
+      "type": "string"
     }
   ],
   "item": [
@@ -287,9 +293,9 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/verify/face_recognition/ESP32-S3-01",
+              "raw": "{{base_url}}/verify/face_recognition/{{device_id}}",
               "host": ["{{base_url}}"],
-              "path": ["verify", "face_recognition", "ESP32-S3-01"]
+              "path": ["verify", "face_recognition", "{{device_id}}"]
             },
             "description": "Matches a live face photo against all registered embeddings. Logs a check-in entry on every call regardless of match result.\n\nUse `file` for binary upload (Postman/HTTP clients) or `image_base64` for base64 string (ESP32/Flutter)."
           },
@@ -300,7 +306,7 @@
               "code": 200,
               "originalRequest": {
                 "method": "POST",
-                "url": { "raw": "{{base_url}}/verify/face_recognition/ESP32-S3-01" }
+                "url": { "raw": "{{base_url}}/verify/face_recognition/{{device_id}}" }
               },
               "body": "{\"match\": true, \"student_id\": \"S001\", \"similarity_score\": 0.92, \"timestamp\": \"2026-07-06T10:00:00\", \"message\": \"Welcome, S001!\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": true}}"
             },
@@ -310,7 +316,7 @@
               "code": 200,
               "originalRequest": {
                 "method": "POST",
-                "url": { "raw": "{{base_url}}/verify/face_recognition/ESP32-S3-01" }
+                "url": { "raw": "{{base_url}}/verify/face_recognition/{{device_id}}" }
               },
               "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.21, \"timestamp\": \"2026-07-06T10:00:01\", \"message\": \"Employee data not found\", \"validation_checklist\": {\"face_detected\": true, \"single_face\": true, \"database_match\": false}}"
             },
@@ -320,7 +326,7 @@
               "code": 200,
               "originalRequest": {
                 "method": "POST",
-                "url": { "raw": "{{base_url}}/verify/face_recognition/ESP32-S3-01" }
+                "url": { "raw": "{{base_url}}/verify/face_recognition/{{device_id}}" }
               },
               "body": "{\"match\": false, \"student_id\": null, \"similarity_score\": 0.0, \"timestamp\": \"2026-07-06T10:00:02\", \"message\": \"Please look at the camera\", \"validation_checklist\": {\"face_detected\": false, \"single_face\": false, \"database_match\": false}}"
             }
@@ -343,9 +349,9 @@
               ]
             },
             "url": {
-              "raw": "{{base_url}}/verify/face_recognition/ESP32-S3-01",
+              "raw": "{{base_url}}/verify/face_recognition/{{device_id}}",
               "host": ["{{base_url}}"],
-              "path": ["verify", "face_recognition", "ESP32-S3-01"]
+              "path": ["verify", "face_recognition", "{{device_id}}"]
             },
             "description": "Same as file upload but image is passed as a raw base64 string. This is the format used by ESP32 cameras and the Flutter mobile app. No data:image/jpeg;base64, prefix required."
           },

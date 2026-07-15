@@ -6,7 +6,7 @@ class ApiConstants {
   static const String register = '/register';
   static const String registerStatus = '/register/status';
   static const String trainNow = '/train-now';
-  static const String verify = '/verify';
+  static const String verify = '/verify/face_recognition';
   static const String logs = '/logs';
   static const String health = '/';
 

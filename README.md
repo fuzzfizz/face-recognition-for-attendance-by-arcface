@@ -1,4 +1,4 @@
-﻿# Face Recognition Attendance System (FaceAttend)
+# Face Recognition Attendance System (FaceAttend)
 
 An end-to-end, high-accuracy, AI-powered attendance system featuring local-edge verification and MySQL-based cloud database persistence. The system bridges a **Flutter registration client**, an **ESP32 hardware camera module**, a **FastAPI AI inference server**, and a **PHP-based web administration dashboard** — all backed by a single **MySQL** database that stores student records, registration images (as `LONGBLOB`), and attendance logs.
 
@@ -10,7 +10,7 @@ An end-to-end, high-accuracy, AI-powered attendance system featuring local-edge 
 graph TD
     subgraph Client Applications
         A[Flutter App: app_face_capture] -->|Register Students / Upload Photos| B[FastAPI AI Server: ai_server]
-        D[ESP32 Hardware Module] -->|Sends Live Photo to /verify| B
+        D[ESP32 Hardware Module] -->|Sends Live Photo to /verify/face_recognition/{device_id}| B
     end
 
     subgraph AI Server and In-Memory Matching
@@ -40,7 +40,7 @@ graph TD
 | **In-Memory Cache** | `face_embeddings.pkl` (RAM) | All trained embeddings are loaded into memory on server start. Verification runs against this cache for sub-second latency — zero database hits during matching. |
 | **Registration Client** | Flutter (cross-platform) | Captures 10 quality-checked face photos per student and uploads them to the AI server. |
 | **Admin Dashboard** | PHP 8+ (PDO to MySQL) | Live attendance monitoring, student management, registration queue inspection, and one-click force-training. |
-| **Edge Hardware** | ESP32-CAM (Arduino C++) | Captures a face at the entrance and POSTs the image to `/verify` for real-time check-in. |
+| **Edge Hardware** | ESP32-CAM (Arduino C++) | Captures a face at the entrance and POSTs the image to `/verify/face_recognition/{device_id}` for real-time check-in. |
 
 ---
 
@@ -164,7 +164,7 @@ Scheduled (cron-like) or Manual (admin trigger) to Process pending queue
 ### 3. Face Verification (Check-In)
 
 ```
-ESP32-CAM to capture to POST /verify to AI Server
+ESP32-CAM to capture to POST /verify/face_recognition/{device_id} to AI Server
                                         |
                            +------------+------------+
                            |                         |
@@ -188,7 +188,7 @@ ESP32-CAM to capture to POST /verify to AI Server
                      check_in_logs                error_message
 ```
 
-1. The **ESP32-CAM module** captures a face at the entrance and sends a POST request with the image payload to the server`s `/verify` endpoint.
+1. The **ESP32-CAM module** captures a face at the entrance and sends a POST request with the image payload to the server`s `/verify/face_recognition/{device_id}` endpoint.
 2. The server uses **InsightFace** to extract a face embedding from the incoming image.
 3. The embedding is compared against all embeddings in the in-memory `.pkl` cache using **cosine similarity**.
 4. If the highest similarity score exceeds the configured threshold (`SIMILARITY_THRESHOLD`, default `0.60`), the user is identified, a check-in success response is returned to the ESP32 (to trigger a buzzer or open a door), and an attendance record is inserted into the `check_in_logs` table.
@@ -333,7 +333,7 @@ On first launch:
 ### Step 5: Deploy the ESP32 Module (Optional)
 
 1. Open the source code inside `esp32_system/` (once available) in Arduino IDE or PlatformIO.
-2. Configure your WiFi credentials and the AI server URL: `http://<SERVER_IP>:8000/verify`.
+2. Configure your WiFi credentials and the AI server URL: `http://<SERVER_IP>:8000/verify/face_recognition/{device_id}`.
 3. Flash the device.
 
 ---
@@ -346,7 +346,7 @@ On first launch:
 | `POST` | `/register` | Register student with uploaded face images (multipart) | None |
 | `GET` | `/register/status/{student_id}` | Check registration processing status | None |
 | `POST` | `/train-now` | Process all pending queue items immediately | `X-Admin-Key` |
-| `POST` | `/verify` | Verify a face image and log attendance | None |
+| `POST` | `/verify/face_recognition/{device_id}` | Verify a face image and log attendance | None |
 | `GET` | `/logs` | Retrieve recent attendance logs (with pagination) | None |
 | `DELETE` | `/student/{student_id}` | Delete a student and all associated data | `X-Admin-Key` |
 
