@@ -10,7 +10,7 @@ An end-to-end, high-accuracy, AI-powered attendance system featuring local-edge 
 graph TD
     subgraph Client Applications
         A[Flutter App: app_face_capture] -->|Register Students / Upload Photos| B[FastAPI AI Server: ai_server]
-        D[ESP32 Hardware Module] -->|Sends Live Photo to /verify/face_recognition/{device_id}| B
+        D[ESP32 Hardware Module] -->|"Sends Live Photo to /verify/face_recognition/{device_id}"| B
     end
 
     subgraph AI Server and In-Memory Matching
