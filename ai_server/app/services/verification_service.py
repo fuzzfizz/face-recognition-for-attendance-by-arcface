@@ -22,16 +22,37 @@ def verify_face(
     """
     dt_obj = None
     if timestamp:
-        clean_ts = timestamp
+        clean_ts = timestamp.strip()
         if clean_ts.endswith("Z"):
             clean_ts = clean_ts[:-1] + "+00:00"
         try:
             dt_obj = datetime.datetime.fromisoformat(clean_ts)
         except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid timestamp format: {str(e)}"
-            )
+            # Fall back to other common formats (especially 2-digit years like YY-MM-DDTHH:MM:SS.ffffff)
+            formats_to_try = [
+                "%y-%m-%dT%H:%M:%S.%f",
+                "%y-%m-%d %H:%M:%S.%f",
+                "%y-%m-%dT%H:%M:%S",
+                "%y-%m-%d %H:%M:%S",
+                "%y/%m/%d %H:%M:%S.%f",
+                "%y/%m/%d %H:%M:%S",
+                "%d-%m-%Y %H:%M:%S.%f",
+                "%d-%m-%Y %H:%M:%S",
+                "%d/%m/%Y %H:%M:%S.%f",
+                "%d/%m/%Y %H:%M:%S",
+            ]
+            for fmt in formats_to_try:
+                try:
+                    dt_obj = datetime.datetime.strptime(clean_ts, fmt)
+                    break
+                except ValueError:
+                    continue
+            
+            if dt_obj is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid timestamp format: {str(e)}"
+                )
         if dt_obj.tzinfo is not None:
             dt_obj = dt_obj.astimezone(datetime.timezone.utc).replace(tzinfo=None)
 

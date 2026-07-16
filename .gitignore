@@ -58,3 +58,8 @@ docker-compose.override.yml
 Idea.md
 sdd_helper.py
 DEPLOY_GUIDE.md
+skills-lock.json
+Workflow.md
+.agents/
+.obsidian/
+docs/
