@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(100) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_users_student_id (student_id)
 );
 
@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS registration_queue (
     image_blob LONGBLOB NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     error_message TEXT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processed_at TIMESTAMP NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    processed_at DATETIME NULL,
     INDEX idx_registration_queue_student_id (student_id),
     INDEX idx_registration_queue_status (status)
 );
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS check_in_logs (
     similarity_score DOUBLE NULL,
     device_id VARCHAR(50) NULL,
     error_message VARCHAR(255) NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_check_in_logs_timestamp (timestamp DESC)
 );
